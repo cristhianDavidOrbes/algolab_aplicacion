@@ -1,0 +1,76 @@
+# Unity: carpetas regenerables
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Recuperación y archivos locales de Unity/Codex
+Assets/_Recovery/
+.utmp/
+.agents/
+DeviceBackups/
+build-piper.log
+tmp/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python / IA local
+**/.venv/
+**/.venv.*/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.cache/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.env
+**/.env.*
+!**/.env.example
+
+# Node / frontend
+**/node_modules/
+**/.next/
+**/.npm/
+**/.pnpm-store/
+**/coverage/
+
+# Gradle / backend
+**/.gradle/
+**/build/
+**/out/
+
+# Secretos y credenciales
+*.keystore
+*.jks
+*.pfx
+*.p12
+*.pem
+*.key
+secrets*.json
+credentials*.json
+service-account*.json

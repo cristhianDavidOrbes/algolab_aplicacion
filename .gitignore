@@ -11,6 +11,7 @@
 
 # Recuperación y archivos locales de Unity/Codex
 Assets/_Recovery/
+Assets/_Recovery.meta
 .utmp/
 .agents/
 DeviceBackups/

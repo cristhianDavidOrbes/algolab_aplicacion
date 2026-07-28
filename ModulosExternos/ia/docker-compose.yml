@@ -1,0 +1,43 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: algolab-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: algolab-ollama-pull
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "until ollama list >/dev/null 2>&1; do sleep 2; done;
+      ollama pull $$OLLAMA_MODEL"
+    restart: "no"
+
+  ia-api:
+    build: .
+    container_name: algolab-ia-api
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
+    ports:
+      - "${IA_API_PORT:-8001}:8001"
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-https://backendfrontendpaginawebmr-production.up.railway.app}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-https://backendfrontendpaginawebmr-production.up.railway.app}
+      BACKEND_ADMIN_EMAIL: ${BACKEND_ADMIN_EMAIL:-cristhian.david@admin.com}
+      BACKEND_ADMIN_PASSWORD: ${BACKEND_ADMIN_PASSWORD:-define-una-contrasena-segura}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}
+    restart: unless-stopped
+
+volumes:
+  ollama-data:

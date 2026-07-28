@@ -1,0 +1,11 @@
+.git
+.github
+.vscode
+frontend/node_modules
+frontend/.next
+frontend/coverage
+**/.gradle
+**/build
+**/*.log
+**/*.tmp
+**/*.temp

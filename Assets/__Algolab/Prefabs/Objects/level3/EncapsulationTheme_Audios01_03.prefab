@@ -1,0 +1,229 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7271264162830214779
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6074169649022581901}
+  - component: {fileID: 3097197505328703906}
+  - component: {fileID: 4242071529587415318}
+  - component: {fileID: 5316602983869592260}
+  m_Layer: 0
+  m_Name: EncapsulationTheme_Audios01_03
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6074169649022581901
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7271264162830214779}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3097197505328703906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7271264162830214779}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 125f0622d44343e45ba880d6b4dd3539, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AlgoLabEncapsulationThemeVisual
+  pillarModelPrefab: {fileID: 919132149155446097, guid: 131285474fa73704fbaa1518db7a731c, type: 3}
+  pillarIconMaterials:
+  - {fileID: 2100000, guid: da486b7b9ff07bf4a8bfb1a81ad428b7, type: 2}
+  - {fileID: 2100000, guid: ac58b2ec6fa668044a4175888ec9c8b5, type: 2}
+  - {fileID: 2100000, guid: ad9884f86a30cca428619d3991ae2513, type: 2}
+  - {fileID: 2100000, guid: e7c9ea9d1dd194447a0cb860789112d2, type: 2}
+  accessIconMaterials:
+  - {fileID: 2100000, guid: 21e8366fca4e9d4448ca50c9b1682575, type: 2}
+  - {fileID: 2100000, guid: bf3ef463e079f9c4bb1e664f5a9c010c, type: 2}
+  - {fileID: 2100000, guid: 1fd76116af70d9441b37b1e1552cac67, type: 2}
+  audioIntroCuatroPilares: {fileID: 8300000, guid: 2be4545fef8099b49829604812c0a969, type: 3}
+  audioQueEsEncapsulamiento: {fileID: 8300000, guid: acdd0c65c1ae50a46ad8b1d43fd0478e, type: 3}
+  audioTiposDeAcceso: {fileID: 8300000, guid: 58cbe784a5434db44b8a5243b1b7e07a, type: 3}
+  bankExampleVisual: {fileID: 5316602983869592260}
+  layoutCenterX: 0.15
+  layoutDepth: 0.35
+  pillarSpacing: 0.28
+  pillarHeight: 0.32
+  pillarBaseY: -0.07
+  pillarIconSize: 0.18
+  pillarIconGap: 0.06
+  selectedForwardOffset: 0.02
+  selectedRaise: 0.03
+  selectedScale: 1.08
+  accessSpacing: 0.3
+  accessRowY: 0.11
+  accessForwardOffset: -0.18
+  accessIconSize: 0.2
+  accessSelectedScale: 1.14
+  appearDuration: 0.42
+  focusDuration: 0.3
+  disappearDuration: 0.34
+  narrationVolume: 1
+  OnSequenceFinished:
+    m_PersistentCalls:
+      m_Calls: []
+  showDebug: 0
+--- !u!82 &4242071529587415318
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7271264162830214779}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &5316602983869592260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7271264162830214779}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd5857815ad86f4a8d90c012a1146ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AlgoLabEncapsulationBankExampleVisual
+  safeModelPrefab: {fileID: 4868059660420956562, guid: a01ce1372367f0d439f677d7f56cdb29, type: 3}
+  personModelPrefab: {fileID: 919132149155446097, guid: f587a99da1a70a34d9e13d14721ca25a, type: 3}
+  goldModelPrefab: {fileID: 919132149155446097, guid: 9bc7a7049350fab41929f8bf01c4bd7c, type: 3}
+  userClassName: Usuario
+  accountClassName: Cuenta
+  fontAsset: {fileID: 11400000, guid: bafcde68c29c6444fa3d8f61739e71c2, type: 2}
+  panelMaterial: {fileID: 2100000, guid: f45dc3ffd7a0dca4aaf5258dd37857fe, type: 2}
+  headerMaterial: {fileID: 2100000, guid: 7682e5726a04355479382fe5a88e964b, type: 2}
+  publicMaterial: {fileID: 2100000, guid: 467d26212b071814d877d6b5b7dba0b0, type: 2}
+  privateMaterial: {fileID: 2100000, guid: 5d12d17c9b126cf44ae55823b33ce55f, type: 2}
+  neutralMaterial: {fileID: 2100000, guid: 4243069ea54b4ac4dbe28f8b97c2d82f, type: 2}
+  publicIconMaterial: {fileID: 2100000, guid: 21e8366fca4e9d4448ca50c9b1682575, type: 2}
+  privateIconMaterial: {fileID: 2100000, guid: bf3ef463e079f9c4bb1e664f5a9c010c, type: 2}
+  audioEjemploCuentaBancaria: {fileID: 8300000, guid: 7707c825c66c9f240833eb26bdf9fb43, type: 3}
+  audioValorPrivado: {fileID: 8300000, guid: 527361ff0bdea0645b79bcc2a118e899, type: 3}
+  audioMetodosPublicos: {fileID: 8300000, guid: 9fea95ae6811a554488938412962af26, type: 3}
+  audioDepositarSueldo: {fileID: 8300000, guid: ebc366ca7d29b3a4cab113add8c83ef2, type: 3}
+  audioIntentoModificarValor: {fileID: 8300000, guid: 873f8ecea25d38c4f94bc475644907c2, type: 3}
+  audioAccesoControlado: {fileID: 8300000, guid: 6849da8995215414888d56be93198bfc, type: 3}
+  audioConclusion: {fileID: 8300000, guid: 9381381075ba4594dbc9fadb889ec984, type: 3}
+  konamiDanceClip: {fileID: -203655887218126122, guid: db67d943a2b4faf43b40ab65fde2ab1a, type: 3}
+  konamiScaleMultiplier: 3
+  konamiRainbowSpeed: 0.32
+  diagramCenterX: 0.15
+  diagramDepth: 0.35
+  diagramBaseY: -0.02
+  userOffsetX: -0.39
+  accountOffsetX: 0.34
+  personHeight: 0.48
+  safeHeight: 0.42
+  goldHeight: 0.13
+  appearDuration: 0.32
+  focusDuration: 0.25
+  moveDuration: 0.75
+  fadedSafeOpacity: 0.16

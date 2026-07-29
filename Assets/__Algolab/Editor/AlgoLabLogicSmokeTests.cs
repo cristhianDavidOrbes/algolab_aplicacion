@@ -870,10 +870,10 @@ public static class AlgoLabLogicSmokeTests
                     "RobotPracticeVisual/Robot/ModeloRobotRigged"
                 ) != null &&
                 prefab.transform.Find(
-                    "RobotPracticeVisual/Robot/ModeloRobotRigged/Torso/CompartimientoTemperatura/VidrioTemperatura"
+                    "RobotPracticeVisual/Robot/CompartimientoTemperatura/VidrioTemperatura"
                 ) != null &&
                 prefab.transform.Find(
-                    "RobotPracticeVisual/Robot/ModeloRobotRigged/Torso/CompartimientoBateriaTrasero/VidrioBateria"
+                    "RobotPracticeVisual/Robot/CompartimientoBateriaTrasero/VidrioBateria"
                 ) != null,
                 "Nivel 3 robot: el prefab editable no contiene toda la jerarquia usada por el ManualSpawner.",
                 failures

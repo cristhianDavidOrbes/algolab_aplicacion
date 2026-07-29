@@ -53,14 +53,14 @@ public static class AlgoLabLevel3PracticeAudit
             "vidrioTemperatura=" +
             (resource != null &&
              resource.transform.Find(
-                 "RobotPracticeVisual/Robot/ModeloRobotRigged/Torso/CompartimientoTemperatura/VidrioTemperatura"
+                 "RobotPracticeVisual/Robot/CompartimientoTemperatura/VidrioTemperatura"
              ) != null)
         );
         report.AppendLine(
             "vidrioBateria=" +
             (resource != null &&
              resource.transform.Find(
-                 "RobotPracticeVisual/Robot/ModeloRobotRigged/Torso/CompartimientoBateriaTrasero/VidrioBateria"
+                 "RobotPracticeVisual/Robot/CompartimientoBateriaTrasero/VidrioBateria"
              ) != null)
         );
 

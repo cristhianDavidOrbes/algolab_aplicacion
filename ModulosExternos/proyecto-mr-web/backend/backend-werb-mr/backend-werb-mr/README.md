@@ -25,7 +25,7 @@ Al arrancar la aplicacion se crea un administrador inicial si no existe:
 ```txt
 Nombre: Cristhian David
 Correo: cristhian.david@admin.com
-Contrasena: define-una-contrasena-segura
+Contrasena: la definida localmente en `ADMIN_CONTRASENA`
 Rol: ADMINISTRADOR
 ```
 
@@ -77,7 +77,7 @@ Body para iniciar sesion con correo:
 ```json
 {
   "correo": "cristhian.david@admin.com",
-  "contrasena": "define-una-contrasena-segura"
+  "contrasena": "tu-contrasena-segura"
 }
 ```
 
@@ -86,7 +86,7 @@ Body para iniciar sesion con nombre de usuario:
 ```json
 {
   "correo": "cristhian.david",
-  "contrasena": "define-una-contrasena-segura"
+  "contrasena": "tu-contrasena-segura"
 }
 ```
 
@@ -425,7 +425,7 @@ Content-Type: application/json
 ```json
 {
   "correo": "cristhian.david@admin.com",
-  "contrasena": "define-una-contrasena-segura"
+  "contrasena": "tu-contrasena-segura"
 }
 ```
 

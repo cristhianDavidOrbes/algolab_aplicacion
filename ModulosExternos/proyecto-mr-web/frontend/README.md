@@ -225,7 +225,7 @@ Administrador inicial para probar el panel:
 ```json
 {
   "correo": "cristhian.david@admin.com",
-  "contrasena": "define-una-contrasena-segura"
+  "contrasena": "tu-contrasena-segura"
 }
 ```
 

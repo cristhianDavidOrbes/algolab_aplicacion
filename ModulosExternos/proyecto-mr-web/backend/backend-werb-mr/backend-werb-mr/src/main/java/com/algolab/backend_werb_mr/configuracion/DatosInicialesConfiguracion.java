@@ -16,11 +16,12 @@ public class DatosInicialesConfiguracion {
             IUsuarioServicio usuarioServicio,
             @Value("${app.admin.nombre:Cristhian David}") String nombre,
             @Value("${app.admin.correo:cristhian.david@admin.com}") String correo,
-            @Value("${app.admin.contrasena:define-una-contrasena-segura}") String contrasena) {
+            @Value("${app.admin.contrasena:}") String contrasena) {
         return args -> {
             String correoLimpio = correo.trim();
 
-            if (!usuarioServicio.existePorCorreo(correoLimpio)) {
+            if (!contrasena.isBlank() &&
+                    !usuarioServicio.existePorCorreo(correoLimpio)) {
                 Usuario administrador = new Usuario(
                         null,
                         nombre.trim(),

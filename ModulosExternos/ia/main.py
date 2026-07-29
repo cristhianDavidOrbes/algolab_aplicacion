@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     api_base_url: str | None = None
     backend_base_url: str = "http://localhost:8080"
     backend_admin_email: str = "cristhian.david@admin.com"
-    backend_admin_password: str = "define-una-contrasena-segura"
+    backend_admin_password: str = ""
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5-coder:3b"
     whisper_model: str = "base"
@@ -191,6 +191,12 @@ def transcribir_audio_local(audio: bytes, idioma: str | None) -> str:
 
 
 async def obtener_token_admin(client: httpx.AsyncClient) -> str:
+    if not settings.backend_admin_password.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="BACKEND_ADMIN_PASSWORD no esta configurada en el servicio de IA.",
+        )
+
     ahora = time.time()
     if _token_cache["token"] and _token_cache["expires_at"] > ahora:
         return _token_cache["token"]

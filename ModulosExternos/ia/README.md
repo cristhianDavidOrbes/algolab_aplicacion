@@ -558,7 +558,7 @@ Variables de entorno usadas por `main.py`:
 | `API_BASE_URL` | No | `null` | Si existe, tiene prioridad sobre `BACKEND_BASE_URL`. |
 | `BACKEND_BASE_URL` | No | `http://localhost:8080` | URL del backend de AlgoLab. |
 | `BACKEND_ADMIN_EMAIL` | No | `cristhian.david@admin.com` | Correo usado para iniciar sesion como administrador. |
-| `BACKEND_ADMIN_PASSWORD` | No | `define-una-contrasena-segura` | Contrasena usada para iniciar sesion como administrador. |
+| `BACKEND_ADMIN_PASSWORD` | Si | Sin valor por defecto | Contrasena usada para iniciar sesion como administrador. Debe definirse solo en `.env`. |
 | `OLLAMA_BASE_URL` | No | `http://localhost:11434` | URL local donde corre Ollama. |
 | `OLLAMA_MODEL` | No | `qwen2.5-coder:3b` | Modelo que la API le pide a Ollama. |
 | `WHISPER_MODEL` | No | `base` | Modelo local usado para Speech-to-Text. |

@@ -128,6 +128,25 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
         }
     }
 
+    public static void NotificarMenuConfiguracionCerrado()
+    {
+        if (instancia == null)
+        {
+            return;
+        }
+
+        if (instancia.cuartoValido || !instancia.validacionSolicitada)
+        {
+            instancia.RestaurarJuegoTrasEscaneo();
+            return;
+        }
+
+        // El menú restaura su propia pausa antes de notificarnos. Si el
+        // escaneo sigue siendo inválido, recuperamos inmediatamente el bloqueo
+        // para que cerrar Configuración nunca permita jugar fuera del cuarto.
+        instancia.BloquearJuegoPorEscaneo();
+    }
+
     private void Awake()
     {
         if (instancia != null && instancia != this)
@@ -158,6 +177,11 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
 
     private void OnDisable()
     {
+        if (!esInstanciaPrincipal)
+        {
+            return;
+        }
+
         if (revisionRoutine != null)
         {
             StopCoroutine(revisionRoutine);
@@ -172,6 +196,11 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (!esInstanciaPrincipal)
+        {
+            return;
+        }
+
         if (instancia == this)
         {
             instancia = null;
@@ -227,9 +256,7 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
         // El editor no dispone del Room Setup del visor. Las pruebas locales
         // no deben quedar pausadas por una capacidad exclusiva de Quest.
         MarcarCuartoValido();
-        return;
-#endif
-
+#else
         if (!validacionSolicitada)
         {
             MantenerGuardiaEnEspera();
@@ -292,6 +319,7 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
         }
 
         SolicitarEscaneoSiHaceFalta();
+#endif
     }
 
     private bool DebeEsperarSesion()
@@ -448,6 +476,7 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
 
         if (!mostrarAvisoMundoDeRespaldo)
         {
+            ultimoMensajeMostrado = mensaje;
             return;
         }
 
@@ -600,7 +629,12 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
     {
         if (!pausaAplicada)
         {
-            escalaTiempoAntesDeBloquear = Time.timeScale;
+            AlgoLabSettingsMenuController settings =
+                AlgoLabSettingsMenuController.Instance;
+            escalaTiempoAntesDeBloquear =
+                settings != null && settings.MenuAbierto
+                    ? settings.EscalaTiempoAntesDePausa
+                    : Time.timeScale;
             pausaAplicada = true;
             LiberarObjetosAgarrados();
         }
@@ -613,6 +647,16 @@ public class AlgoLabRoomScanGuard : MonoBehaviour
         JuegoBloqueadoPorEscaneo = false;
         if (!pausaAplicada)
             return;
+
+        AlgoLabSettingsMenuController settings =
+            AlgoLabSettingsMenuController.Instance;
+        if (settings != null && settings.MenuAbierto)
+        {
+            // La validación terminó, pero el menú sigue siendo dueño de la
+            // pausa. La escala se restaura cuando se cierre la configuración.
+            return;
+        }
+
         Time.timeScale = escalaTiempoAntesDeBloquear;
         pausaAplicada = false;
     }

@@ -39,6 +39,7 @@ public static class AlgoLabLogicSmokeTests
             TestPracticeTutorials(checks, failures);
             TestLevel3RobotPractice(checks, failures);
             TestEditableAuthoringContent(checks, failures);
+            TestPillarLevelDefaults(checks, failures);
         }
         catch (Exception exception)
         {
@@ -784,6 +785,63 @@ public static class AlgoLabLogicSmokeTests
             }
         }
         return count;
+    }
+
+    private static void TestPillarLevelDefaults(
+        List<string> checks,
+        List<string> failures)
+    {
+        GameObject root = new GameObject("LogicTestPillarDefaults");
+        try
+        {
+            AlgoLabPillarLevelController controller =
+                root.AddComponent<AlgoLabPillarLevelController>();
+            controller.mostrarDebug = false;
+            controller.niveles =
+                new List<AlgoLabPillarLevelController.PilarNivel>
+                {
+                    new AlgoLabPillarLevelController.PilarNivel
+                    {
+                        numeroNivel = 4,
+                        nombre = "Abstraccion personalizada",
+                        explicacion = "Contenido conservado",
+                        reto = "Reto conservado"
+                    }
+                };
+
+            controller.AsegurarNivelesPorDefecto();
+            bool allLevels =
+                controller.ObtenerNivel(3) != null &&
+                controller.ObtenerNivel(4) != null &&
+                controller.ObtenerNivel(5) != null &&
+                controller.ObtenerNivel(6) != null;
+            bool customPreserved =
+                controller.ObtenerNivel(4).nombre ==
+                    "Abstraccion personalizada" &&
+                controller.ObtenerNivel(4).reto ==
+                    "Reto conservado";
+
+            Require(
+                allLevels,
+                "Pilares POO: una lista parcial deja niveles faltantes sin configuracion.",
+                failures
+            );
+            Require(
+                customPreserved,
+                "Pilares POO: completar niveles por defecto reemplaza contenido personalizado.",
+                failures
+            );
+            if (allLevels && customPreserved)
+            {
+                checks.Add(
+                    "OK Pilares POO: una configuracion parcial se completa sin perder datos personalizados."
+                );
+            }
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
     }
 
     private static void TestLevel3RobotPractice(

@@ -83,54 +83,92 @@ public class AlgoLabPillarLevelController : MonoBehaviour
             niveles = new List<PilarNivel>();
         }
 
-        if (niveles.Count > 0)
+        for (int numeroNivel = 3; numeroNivel <= 6; numeroNivel++)
         {
+            PilarNivel existente = null;
             for (int i = 0; i < niveles.Count; i++)
             {
-                if (niveles[i] != null && niveles[i].numeroNivel == 3)
+                if (niveles[i] != null &&
+                    niveles[i].numeroNivel == numeroNivel)
                 {
-                    niveles[i].reto =
-                        "Repara el Robot usando solo sus metodos publicos. Protege energia, temperatura, encendido y averia: intentar modificar directamente un atributo privado resta puntos.";
+                    existente = niveles[i];
                     break;
                 }
             }
-            return;
+
+            PilarNivel porDefecto = CrearNivelPorDefecto(numeroNivel);
+            if (existente == null)
+            {
+                niveles.Add(porDefecto);
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(existente.nombre))
+            {
+                existente.nombre = porDefecto.nombre;
+            }
+            if (string.IsNullOrWhiteSpace(existente.explicacion))
+            {
+                existente.explicacion = porDefecto.explicacion;
+            }
+            if (numeroNivel == 3 ||
+                string.IsNullOrWhiteSpace(existente.reto))
+            {
+                existente.reto = porDefecto.reto;
+            }
         }
+    }
 
-        niveles.Add(new PilarNivel
+    private static PilarNivel CrearNivelPorDefecto(int numeroNivel)
+    {
+        switch (numeroNivel)
         {
-            numeroNivel = 3,
-            nombre = "Encapsulamiento",
-            explicacion = "Una clase protege su estado interno y expone solo operaciones seguras. Los datos privados no se manipulan directamente: se validan mediante métodos públicos.",
-            reto = "Explica qué datos deben ser privados en CuentaSegura y qué métodos públicos pueden depositar, retirar o consultar el saldo."
-        });
-
-        niveles[niveles.Count - 1].reto =
-            "Repara el Robot usando solo sus metodos publicos. Protege energia, temperatura, encendido y averia: intentar modificar directamente un atributo privado resta puntos.";
-
-        niveles.Add(new PilarNivel
-        {
-            numeroNivel = 4,
-            nombre = "Abstracción",
-            explicacion = "La abstracción muestra lo esencial y oculta detalles que no necesita quien utiliza el objeto. Una interfaz simple permite usar una clase sin conocer toda su implementación.",
-            reto = "Separa las operaciones esenciales de Vehículo de los detalles internos necesarios para realizarlas."
-        });
-
-        niveles.Add(new PilarNivel
-        {
-            numeroNivel = 5,
-            nombre = "Herencia",
-            explicacion = "Una clase hija reutiliza la estructura de una clase padre y puede especializarla. Así Carro, Moto y Camión comparten lo que corresponde a Vehículo.",
-            reto = "Clasifica qué atributos y métodos pertenecen a Vehículo y cuáles son específicos de Carro, Moto o Camión."
-        });
-
-        niveles.Add(new PilarNivel
-        {
-            numeroNivel = 6,
-            nombre = "Polimorfismo",
-            explicacion = "Una misma operación puede producir un comportamiento distinto según el objeto que la ejecuta. Una referencia común permite trabajar con varias implementaciones.",
-            reto = "Relaciona acelerar() con la implementación de Carro, Moto o Camión y explica por qué cambia la respuesta."
-        });
+            case 3:
+                return new PilarNivel
+                {
+                    numeroNivel = 3,
+                    nombre = "Encapsulamiento",
+                    explicacion =
+                        "Una clase protege su estado interno y expone solo operaciones seguras. " +
+                        "Los datos privados no se manipulan directamente: se validan mediante métodos públicos.",
+                    reto =
+                        "Repara el Robot usando solo sus metodos publicos. Protege energia, temperatura, " +
+                        "encendido y averia: intentar modificar directamente un atributo privado resta puntos."
+                };
+            case 4:
+                return new PilarNivel
+                {
+                    numeroNivel = 4,
+                    nombre = "Abstracción",
+                    explicacion =
+                        "La abstracción muestra lo esencial y oculta detalles que no necesita quien utiliza el objeto. " +
+                        "Una interfaz simple permite usar una clase sin conocer toda su implementación.",
+                    reto =
+                        "Separa las operaciones esenciales de Vehículo de los detalles internos necesarios para realizarlas."
+                };
+            case 5:
+                return new PilarNivel
+                {
+                    numeroNivel = 5,
+                    nombre = "Herencia",
+                    explicacion =
+                        "Una clase hija reutiliza la estructura de una clase padre y puede especializarla. " +
+                        "Así Carro, Moto y Camión comparten lo que corresponde a Vehículo.",
+                    reto =
+                        "Clasifica qué atributos y métodos pertenecen a Vehículo y cuáles son específicos de Carro, Moto o Camión."
+                };
+            default:
+                return new PilarNivel
+                {
+                    numeroNivel = 6,
+                    nombre = "Polimorfismo",
+                    explicacion =
+                        "Una misma operación puede producir un comportamiento distinto según el objeto que la ejecuta. " +
+                        "Una referencia común permite trabajar con varias implementaciones.",
+                    reto =
+                        "Relaciona acelerar() con la implementación de Carro, Moto o Camión y explica por qué cambia la respuesta."
+                };
+        }
     }
 
     public bool EsNivelPilar(int numeroNivelReal)

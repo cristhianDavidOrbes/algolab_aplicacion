@@ -120,6 +120,10 @@ public class AlgoLabSettingsMenuController : MonoBehaviour
     private bool pausaNivelAplicada;
     private float escalaTiempoAnterior = 1f;
     private bool audioPausadoAnterior;
+
+    public bool MenuAbierto => menuAbierto;
+    public float EscalaTiempoAntesDePausa =>
+        pausaNivelAplicada ? escalaTiempoAnterior : Time.timeScale;
     private Coroutine rutinaRestauracionPaneles;
     private float fpsActualMedido;
     private float tiempoMuestraFps;
@@ -474,6 +478,7 @@ public class AlgoLabSettingsMenuController : MonoBehaviour
         guiasAltura?.OcultarSuavemente();
         RestaurarPanelesOcultos(false);
         ReanudarNivel();
+        AlgoLabRoomScanGuard.NotificarMenuConfiguracionCerrado();
 
         if (pocketManager != null)
         {

@@ -261,6 +261,25 @@ public class AlgoLabAbstractionThemeVisual : MonoBehaviour
             return;
         }
 
+        Transform authoredRoot =
+            transform.Find("VisualesAbstraccion_Audios01_08");
+        if (authoredRoot != null)
+        {
+            generatedRoot = authoredRoot;
+            if (BindAuthoredVisuals())
+            {
+                EnsureContextOutlines();
+                return;
+            }
+
+            Debug.LogWarning(
+                "ABSTRACCION: la jerarquia visual editable estaba incompleta y sera reconstruida.",
+                this
+            );
+            DestroyHierarchy(authoredRoot.gameObject);
+            generatedRoot = null;
+        }
+
         generatedRoot = new GameObject("VisualesAbstraccion_Audios01_08").transform;
         generatedRoot.SetParent(transform, false);
 
@@ -269,6 +288,191 @@ public class AlgoLabAbstractionThemeVisual : MonoBehaviour
         CreateStoreVisual();
         CreatePhoneVisual();
         CreateDiagramData();
+    }
+
+    [ContextMenu("Preparar jerarquia visual editable")]
+    public void PrepareEditableHierarchy()
+    {
+        EnsureVisuals();
+    }
+
+    [ContextMenu("Mostrar vista previa editable completa")]
+    public void ShowEditablePreview()
+    {
+        EnsureVisuals();
+        for (int i = 0; i < pillarAnchors.Count; i++)
+        {
+            pillarAnchors[i].localPosition = pillarHomePositions[i];
+            pillarAnchors[i].localScale = pillarHomeScales[i];
+        }
+        SetGroupScale(vinylGroup, Vector3.one);
+        SetGroupScale(storeGroup, Vector3.one);
+        SetGroupScale(phoneGroup, Vector3.one);
+        if (phoneShellAnchor != null)
+        {
+            phoneShellAnchor.localScale = Vector3.one;
+        }
+        if (boardAnchor != null)
+        {
+            boardAnchor.localScale = Vector3.one;
+        }
+        SetPhoneTitle("APLICACION / PLACA INTERNA");
+
+        if (initialSongDiagramData != null)
+        {
+            initialSongDiagramData.gameObject.SetActive(false);
+        }
+        if (storeDiagramData != null)
+        {
+            storeDiagramData.gameObject.SetActive(false);
+        }
+        if (appDiagramData != null)
+        {
+            appDiagramData.gameObject.SetActive(false);
+        }
+    }
+
+    private bool BindAuthoredVisuals()
+    {
+        pillarGroup =
+            generatedRoot.Find("01_CuatroPilares_ReutilizadosNivel3");
+        vinylGroup = generatedRoot.Find("02_Cancion_Centro");
+        storeGroup = generatedRoot.Find("03_Tienda_LadoIzquierdo");
+        phoneGroup = generatedRoot.Find("04_Aplicacion_LadoDerecho");
+
+        if (pillarGroup == null ||
+            vinylGroup == null ||
+            storeGroup == null ||
+            phoneGroup == null)
+        {
+            return false;
+        }
+
+        pillarAnchors.Clear();
+        pillarHomePositions.Clear();
+        pillarHomeScales.Clear();
+        for (int i = 0; i < 4; i++)
+        {
+            Transform pillar = pillarGroup.Find("Pilar_" + (i + 1));
+            if (pillar == null)
+            {
+                return false;
+            }
+
+            pillarAnchors.Add(pillar);
+            pillarHomePositions.Add(pillar.localPosition);
+            pillarHomeScales.Add(Vector3.one);
+        }
+
+        phoneShellAnchor = phoneGroup.Find("Telefono");
+        boardAnchor =
+            phoneGroup.Find("PlacaInternaDentroDelTelefono");
+        Transform phoneTitleTransform =
+            phoneGroup.Find("TituloAplicacion");
+        phoneTitle = phoneTitleTransform != null
+            ? phoneTitleTransform.GetComponent<TextMeshPro>()
+            : null;
+
+        Transform initialData =
+            generatedRoot.Find("Diagrama_Abstraccion_CancionInicial");
+        Transform storeData =
+            generatedRoot.Find("Diagrama_Abstraccion_CancionTienda");
+        Transform appData =
+            generatedRoot.Find("Diagrama_Abstraccion_CancionAplicacion");
+
+        if (phoneShellAnchor == null ||
+            boardAnchor == null ||
+            phoneTitle == null ||
+            initialData == null ||
+            storeData == null ||
+            appData == null)
+        {
+            return false;
+        }
+
+        initialSongDiagramData =
+            initialData.GetComponent<AlgoLabObjetoEducativo>();
+        storeDiagramData =
+            storeData.GetComponent<AlgoLabObjetoEducativo>();
+        appDiagramData =
+            appData.GetComponent<AlgoLabObjetoEducativo>();
+
+        return initialSongDiagramData != null &&
+            storeDiagramData != null &&
+            appDiagramData != null;
+    }
+
+    private void EnsureContextOutlines()
+    {
+        Transform storeAnchor =
+            storeGroup != null ? storeGroup.Find("Tienda") : null;
+        GameObject storeModel = FindDirectVisualModel(storeAnchor);
+        ApplyContextOutline(
+            storeModel,
+            GetContextOutlineMaterial(
+                ref storeOutlineMaterial,
+                storeOutlineColor,
+                "Outline_Tienda_Verde"
+            )
+        );
+
+        GameObject phoneModel =
+            FindDirectVisualModel(phoneShellAnchor);
+        ApplyContextOutline(
+            phoneModel,
+            GetContextOutlineMaterial(
+                ref applicationOutlineMaterial,
+                applicationOutlineColor,
+                "Outline_Aplicacion_Azul"
+            )
+        );
+
+        GameObject boardModel =
+            FindDirectVisualModel(boardAnchor);
+        ApplyContextOutline(
+            boardModel,
+            GetContextOutlineMaterial(
+                ref applicationOutlineMaterial,
+                applicationOutlineColor,
+                "Outline_Aplicacion_Azul"
+            )
+        );
+    }
+
+    private static GameObject FindDirectVisualModel(Transform parent)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform child = parent.GetChild(i);
+            if (child.GetComponentInChildren<Renderer>(true) != null)
+            {
+                return child.gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    private static void DestroyHierarchy(GameObject hierarchy)
+    {
+        if (hierarchy == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(hierarchy);
+        }
+        else
+        {
+            DestroyImmediate(hierarchy);
+        }
     }
 
     private void CreatePillars()
@@ -678,7 +882,14 @@ public class AlgoLabAbstractionThemeVisual : MonoBehaviour
         Collider collider = quad.GetComponent<Collider>();
         if (collider != null)
         {
-            Destroy(collider);
+            if (Application.isPlaying)
+            {
+                Destroy(collider);
+            }
+            else
+            {
+                DestroyImmediate(collider);
+            }
         }
 
         MeshRenderer renderer = quad.GetComponent<MeshRenderer>();

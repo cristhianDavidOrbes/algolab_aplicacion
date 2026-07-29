@@ -35,8 +35,10 @@ public static class AlgoLabLogicSmokeTests
             TestLevel02VehicleDestination(checks, failures);
             TestRandomVehicleRequirements(checks, failures);
             TestDoorStateBeforeStart(checks, failures);
+            TestLevel1DoorDiagramData(checks, failures);
             TestPracticeTutorials(checks, failures);
             TestLevel3RobotPractice(checks, failures);
+            TestEditableAuthoringContent(checks, failures);
         }
         catch (Exception exception)
         {
@@ -564,6 +566,224 @@ public static class AlgoLabLogicSmokeTests
         {
             checks.Add("OK Nivel 3: guia de practica provisional conectada y lista para multimedia.");
         }
+    }
+
+    private static void TestLevel1DoorDiagramData(
+        List<string> checks,
+        List<string> failures)
+    {
+        const string prefabPath =
+            "Assets/__Algolab/Prefabs/Objects/level1/PuertaTemaRoot.prefab";
+        GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
+        try
+        {
+            AlgoLabObjetoEducativo[] objects =
+                root.GetComponentsInChildren<AlgoLabObjetoEducativo>(true);
+            AlgoLabObjetoEducativo door = Array.Find(
+                objects,
+                item =>
+                    item != null &&
+                    string.Equals(
+                        item.nombreClase,
+                        "Puerta",
+                        StringComparison.OrdinalIgnoreCase
+                    )
+            );
+
+            bool complete =
+                door != null &&
+                door.atributos != null &&
+                door.atributos.Length >= 3 &&
+                door.metodos != null &&
+                door.metodos.Length >= 2;
+            Require(
+                complete,
+                "Nivel 1: el diagrama de Puerta no contiene sus atributos y metodos.",
+                failures
+            );
+            if (complete)
+            {
+                checks.Add(
+                    "OK Nivel 1: Puerta publica atributos y metodos completos en el diagrama."
+                );
+            }
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static void TestEditableAuthoringContent(
+        List<string> checks,
+        List<string> failures)
+    {
+        const string level3Path =
+            "Assets/__Algolab/Prefabs/Objects/level3/EncapsulationTheme_Audios01_03.prefab";
+        const string level4Path =
+            "Assets/__Algolab/Prefabs/Objects/level4/AbstractionTheme_Audios01_06.prefab";
+
+        GameObject level3 = PrefabUtility.LoadPrefabContents(level3Path);
+        try
+        {
+            AlgoLabEncapsulationThemeVisual visual =
+                level3.GetComponent<AlgoLabEncapsulationThemeVisual>();
+            Require(
+                visual != null,
+                "Autoría: falta el controlador visual del nivel 3.",
+                failures
+            );
+            if (visual != null)
+            {
+                visual.PrepareEditableHierarchy();
+                visual.PrepareEditableHierarchy();
+            }
+
+            Transform theme =
+                level3.transform.Find(
+                    "VisualesEncapsulamiento_Audios01_03"
+                );
+            Transform bank =
+                level3.transform.Find(
+                    "VisualesFisicos_CuentaBancaria_Audios04_10"
+                );
+            bool complete =
+                theme != null &&
+                theme.Find("Pilar_4/IconoPilar_4") != null &&
+                theme.Find("Acceso_3/IconoAcceso_3") != null &&
+                bank != null &&
+                bank.Find(
+                    "ObjetosFisicos/Objeto_CuentaBancaria/" +
+                    "Variable_valor_Oro_DentroCajaFuerte"
+                ) != null &&
+                CountDirectChildren(
+                    level3.transform,
+                    "VisualesEncapsulamiento_Audios01_03"
+                ) == 1 &&
+                CountDirectChildren(
+                    level3.transform,
+                    "VisualesFisicos_CuentaBancaria_Audios04_10"
+                ) == 1;
+            Require(
+                complete,
+                "Autoría: la jerarquia editable del tema del nivel 3 esta incompleta o se duplica.",
+                failures
+            );
+            if (complete)
+            {
+                checks.Add(
+                    "OK Autoría: nivel 3 tiene pilares, accesos y ejemplo bancario editables sin duplicados."
+                );
+            }
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(level3);
+        }
+
+        GameObject level4 = PrefabUtility.LoadPrefabContents(level4Path);
+        try
+        {
+            AlgoLabAbstractionThemeVisual visual =
+                level4.GetComponent<AlgoLabAbstractionThemeVisual>();
+            Require(
+                visual != null,
+                "Autoría: falta el controlador visual del nivel 4.",
+                failures
+            );
+            if (visual != null)
+            {
+                visual.PrepareEditableHierarchy();
+                visual.PrepareEditableHierarchy();
+            }
+
+            Transform theme =
+                level4.transform.Find("VisualesAbstraccion_Audios01_08");
+            bool complete =
+                theme != null &&
+                theme.Find(
+                    "01_CuatroPilares_ReutilizadosNivel3/Pilar_4"
+                ) != null &&
+                theme.Find("02_Cancion_Centro/Vinilo") != null &&
+                theme.Find("03_Tienda_LadoIzquierdo/Tienda") != null &&
+                theme.Find(
+                    "04_Aplicacion_LadoDerecho/Telefono"
+                ) != null &&
+                theme.Find(
+                    "04_Aplicacion_LadoDerecho/" +
+                    "PlacaInternaDentroDelTelefono"
+                ) != null &&
+                theme.Find(
+                    "Diagrama_Abstraccion_CancionAplicacion"
+                ) != null &&
+                CountDirectChildren(
+                    level4.transform,
+                    "VisualesAbstraccion_Audios01_08"
+                ) == 1;
+            Require(
+                complete,
+                "Autoría: la jerarquia editable del tema del nivel 4 esta incompleta o se duplica.",
+                failures
+            );
+            if (complete)
+            {
+                checks.Add(
+                    "OK Autoría: nivel 4 tiene pilares, vinilo, tienda, telefono y placa editables sin duplicados."
+                );
+            }
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(level4);
+        }
+
+        Scene scene =
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+        GameObject catalog = Array.Find(
+            scene.GetRootGameObjects(),
+            item => item.name == "[CONTENIDO_EDITABLE_ALGOLAB]"
+        );
+        AlgoLabEditableContentCatalog catalogComponent =
+            catalog != null
+                ? catalog.GetComponent<AlgoLabEditableContentCatalog>()
+                : null;
+        bool catalogComplete =
+            catalog != null &&
+            catalog.CompareTag("EditorOnly") &&
+            !catalog.activeSelf &&
+            catalogComponent != null &&
+            catalogComponent.contenidoEditable != null &&
+            catalogComponent.contenidoEditable.Length >= 6 &&
+            catalogComponent.tutorialesEnEscena != null &&
+            catalogComponent.tutorialesEnEscena.Length > 0 &&
+            catalogComponent.controladorNiveles != null &&
+            catalogComponent.administradorObjetos != null;
+        Require(
+            catalogComplete,
+            "Autoría: el catalogo EditorOnly no enlaza todos los niveles, tutoriales y controladores.",
+            failures
+        );
+        if (catalogComplete)
+        {
+            checks.Add(
+                "OK Autoría: catálogo EditorOnly enlaza niveles, tutoriales y controladores sin entrar al APK."
+            );
+        }
+    }
+
+    private static int CountDirectChildren(
+        Transform parent,
+        string childName)
+    {
+        int count = 0;
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            if (parent.GetChild(i).name == childName)
+            {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static void TestLevel3RobotPractice(

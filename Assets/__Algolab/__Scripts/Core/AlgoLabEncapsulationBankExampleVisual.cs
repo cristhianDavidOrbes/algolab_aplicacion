@@ -188,6 +188,30 @@ public class AlgoLabEncapsulationBankExampleVisual : MonoBehaviour, IAlgoLabKona
         SetUserGestureInstantly(accountGroup != null ? accountGroup.position : Vector3.zero);
     }
 
+    [ContextMenu("Mostrar vista previa física editable")]
+    public void ShowEditablePreview()
+    {
+        EnsureVisuals();
+        SetScale(userGroup, Vector3.one);
+        SetScale(accountGroup, Vector3.one);
+        SetScale(valueGold, Vector3.one);
+        SetScale(salaryGold, Vector3.one);
+        SetScale(directBlockedArrow, Vector3.one);
+        SetScale(directBlockedX, Vector3.one);
+        SetScale(controlledArrow, Vector3.one);
+        SetSafeOpacityInstantly(1f);
+        if (animatedSafe != null)
+        {
+            animatedSafe.SetOpenInstantly(true);
+        }
+        if (salaryGold != null)
+        {
+            salaryGold.localPosition = salaryStartPosition;
+        }
+        ResetUserGestureInstantly();
+        HideThemeDiagrams();
+    }
+
     public IEnumerator PlaySequence(AudioSource sharedNarrationSource, float volume)
     {
         narrationSource = sharedNarrationSource;
@@ -330,6 +354,24 @@ public class AlgoLabEncapsulationBankExampleVisual : MonoBehaviour, IAlgoLabKona
             return;
         }
 
+        Transform authoredRoot =
+            transform.Find("VisualesFisicos_CuentaBancaria_Audios04_10");
+        if (authoredRoot != null)
+        {
+            generatedRoot = authoredRoot;
+            if (BindAuthoredVisuals())
+            {
+                return;
+            }
+
+            Debug.LogWarning(
+                "ENCAPSULAMIENTO: el ejemplo editable de Cuenta estaba incompleto y sera reconstruido.",
+                this
+            );
+            DestroyHierarchy(authoredRoot.gameObject);
+            generatedRoot = null;
+        }
+
         generatedRoot = new GameObject("VisualesFisicos_CuentaBancaria_Audios04_10").transform;
         generatedRoot.SetParent(transform, false);
         physicalRoot = CreateAnchor("ObjetosFisicos", generatedRoot, Vector3.zero);
@@ -337,6 +379,164 @@ public class AlgoLabEncapsulationBankExampleVisual : MonoBehaviour, IAlgoLabKona
         CreatePhysicalModels();
         CreateObjectInteractionArrows();
         CreateDiagramDataObjects();
+    }
+
+    [ContextMenu("Preparar ejemplo bancario editable")]
+    public void PrepareEditableHierarchy()
+    {
+        EnsureVisuals();
+    }
+
+    private bool BindAuthoredVisuals()
+    {
+        physicalRoot = generatedRoot.Find("ObjetosFisicos");
+        if (physicalRoot == null)
+        {
+            return false;
+        }
+
+        userGroup = physicalRoot.Find("Objeto_Usuario");
+        accountGroup = physicalRoot.Find("Objeto_CuentaBancaria");
+        salaryGold = physicalRoot.Find("Oro_Interactivo_Usuario");
+        directBlockedArrow =
+            physicalRoot.Find("Flecha_Objeto_AccesoDirectoPrivado");
+        directBlockedX = physicalRoot.Find("Bloqueo_Objeto_X");
+        controlledArrow = physicalRoot.Find("Flecha_Objeto_AccesoPublico");
+
+        if (userGroup == null ||
+            accountGroup == null ||
+            salaryGold == null ||
+            directBlockedArrow == null ||
+            directBlockedX == null ||
+            controlledArrow == null)
+        {
+            return false;
+        }
+
+        valueGold =
+            accountGroup.Find("Variable_valor_Oro_DentroCajaFuerte");
+        if (valueGold == null)
+        {
+            return false;
+        }
+
+        Transform userData =
+            generatedRoot.Find("PanelDiagrama_Datos_Usuario");
+        Transform accountData =
+            generatedRoot.Find("PanelDiagrama_Datos_CuentaBancaria");
+        if (userData == null || accountData == null)
+        {
+            return false;
+        }
+
+        userDiagramData =
+            userData.GetComponent<AlgoLabObjetoEducativo>();
+        accountDiagramData =
+            accountData.GetComponent<AlgoLabObjetoEducativo>();
+        if (userDiagramData == null || accountDiagramData == null)
+        {
+            return false;
+        }
+
+        salaryText = salaryGold.GetComponentInChildren<TextMeshPro>(true);
+        salaryStartPosition = salaryGold.localPosition;
+        float baseY = diagramBaseY - 0.08f;
+        float accountX = diagramCenterX + accountOffsetX;
+        salaryTargetPosition = new Vector3(
+            accountX,
+            baseY + safeHeight * 0.27f,
+            diagramDepth - 0.018f
+        );
+        attemptTargetPosition = new Vector3(
+            accountX - 0.16f,
+            baseY + safeHeight * 0.34f,
+            diagramDepth - 0.08f
+        );
+
+        userModelInstance = FindDirectVisualModel(
+            userGroup,
+            "EtiquetaUsuario"
+        );
+        if (userModelInstance != null)
+        {
+            userModelOriginalLocalPosition =
+                userModelInstance.transform.localPosition;
+            userModelOriginalLocalRotation =
+                userModelInstance.transform.localRotation;
+            userAnimator = userModelInstance.GetComponent<Animator>();
+            if (userAnimator == null)
+            {
+                userAnimator = userModelInstance.AddComponent<Animator>();
+            }
+            userAnimator.applyRootMotion = false;
+            userAnimator.updateMode = AnimatorUpdateMode.UnscaledTime;
+        }
+        InitializeUserRig(userModelInstance);
+
+        GameObject safeModel = FindDirectVisualModel(
+            accountGroup,
+            "EtiquetaCuenta",
+            "Variable_valor_Oro_DentroCajaFuerte"
+        );
+        animatedSafe = safeModel != null
+            ? safeModel.GetComponentInChildren<AlgoLabAnimatedSafe>(true)
+            : null;
+        if (animatedSafe == null)
+        {
+            PrepareSafeMaterials(safeModel);
+        }
+
+        return userModelInstance != null && safeModel != null;
+    }
+
+    private static GameObject FindDirectVisualModel(
+        Transform parent,
+        params string[] excludedNames)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform child = parent.GetChild(i);
+            bool excluded = false;
+            for (int e = 0; e < excludedNames.Length; e++)
+            {
+                if (child.name == excludedNames[e])
+                {
+                    excluded = true;
+                    break;
+                }
+            }
+
+            if (!excluded &&
+                (child.GetComponentInChildren<Renderer>(true) != null ||
+                 child.GetComponentInChildren<Animator>(true) != null))
+            {
+                return child.gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    private static void DestroyHierarchy(GameObject hierarchy)
+    {
+        if (hierarchy == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(hierarchy);
+        }
+        else
+        {
+            DestroyImmediate(hierarchy);
+        }
     }
 
     private void CreatePhysicalModels()

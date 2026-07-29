@@ -179,13 +179,61 @@ public class AlgoLabEncapsulationThemeVisual : MonoBehaviour
             return;
         }
 
+        Transform authoredRoot = transform.Find("VisualesEncapsulamiento_Audios01_03");
+        if (authoredRoot != null)
+        {
+            generatedRoot = authoredRoot;
+            if (BindAuthoredVisuals())
+            {
+                PrepareBankExampleVisual();
+                return;
+            }
+
+            Debug.LogWarning(
+                "ENCAPSULAMIENTO: la jerarquia visual editable estaba incompleta y sera reconstruida.",
+                this
+            );
+            DestroyHierarchy(authoredRoot.gameObject);
+            generatedRoot = null;
+        }
+
         GameObject rootObject = new GameObject("VisualesEncapsulamiento_Audios01_03");
         generatedRoot = rootObject.transform;
         generatedRoot.SetParent(transform, false);
 
         CreatePillars();
         CreateAccessIcons();
+        PrepareBankExampleVisual();
+    }
 
+    [ContextMenu("Preparar jerarquia visual editable")]
+    public void PrepareEditableHierarchy()
+    {
+        EnsureVisuals();
+    }
+
+    [ContextMenu("Mostrar vista previa editable completa")]
+    public void ShowEditablePreview()
+    {
+        EnsureVisuals();
+        focusedPillarIndex = -1;
+        for (int i = 0; i < pillarAnchors.Count; i++)
+        {
+            pillarAnchors[i].localPosition = pillarHomePositions[i];
+            pillarAnchors[i].localScale = pillarHomeScales[i];
+        }
+        for (int i = 0; i < accessAnchors.Count; i++)
+        {
+            accessAnchors[i].localScale = accessHomeScales[i];
+        }
+        if (bankExampleVisual != null)
+        {
+            bankExampleVisual.ShowEditablePreview();
+        }
+    }
+
+    private void PrepareBankExampleVisual()
+    {
         if (bankExampleVisual == null)
         {
             bankExampleVisual = GetComponent<AlgoLabEncapsulationBankExampleVisual>();
@@ -193,6 +241,59 @@ public class AlgoLabEncapsulationThemeVisual : MonoBehaviour
         if (bankExampleVisual != null)
         {
             bankExampleVisual.PrepareVisuals();
+        }
+    }
+
+    private bool BindAuthoredVisuals()
+    {
+        pillarAnchors.Clear();
+        pillarHomePositions.Clear();
+        pillarHomeScales.Clear();
+        accessAnchors.Clear();
+        accessHomeScales.Clear();
+
+        for (int i = 0; i < 4; i++)
+        {
+            Transform anchor = generatedRoot.Find("Pilar_" + (i + 1));
+            if (anchor == null)
+            {
+                return false;
+            }
+
+            pillarAnchors.Add(anchor);
+            pillarHomePositions.Add(anchor.localPosition);
+            pillarHomeScales.Add(Vector3.one);
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            Transform anchor = generatedRoot.Find("Acceso_" + (i + 1));
+            if (anchor == null)
+            {
+                return false;
+            }
+
+            accessAnchors.Add(anchor);
+            accessHomeScales.Add(Vector3.one);
+        }
+
+        return true;
+    }
+
+    private static void DestroyHierarchy(GameObject hierarchy)
+    {
+        if (hierarchy == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(hierarchy);
+        }
+        else
+        {
+            DestroyImmediate(hierarchy);
         }
     }
 
@@ -295,7 +396,14 @@ public class AlgoLabEncapsulationThemeVisual : MonoBehaviour
         Collider collider = quad.GetComponent<Collider>();
         if (collider != null)
         {
-            Destroy(collider);
+            if (Application.isPlaying)
+            {
+                Destroy(collider);
+            }
+            else
+            {
+                DestroyImmediate(collider);
+            }
         }
 
         MeshRenderer renderer = quad.GetComponent<MeshRenderer>();

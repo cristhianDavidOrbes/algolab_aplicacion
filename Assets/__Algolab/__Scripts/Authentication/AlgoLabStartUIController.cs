@@ -22,6 +22,19 @@ public class AlgoLabStartUIController : MonoBehaviour
     public TMP_InputField inputCorreo;
     public TMP_InputField inputContrasena;
 
+    [Header("Segundo factor (se crea automáticamente si falta)")]
+    public GameObject panelSegundoFactor;
+    public TMP_InputField inputCodigoSegundoFactor;
+    public TMP_Text textoTituloSegundoFactor;
+    public TMP_Text textoDestinoSegundoFactor;
+    public TMP_Text textoEstadoSegundoFactor;
+    public TMP_Text textoTiempoSegundoFactor;
+    public Button btnVerificarSegundoFactor;
+    public Button btnReenviarSegundoFactor;
+    public Button btnVolverSegundoFactor;
+    [Tooltip("CORREO es el canal seguro predeterminado. Usa SMS solo si el perfil tiene celular verificado y Twilio está configurado.")]
+    public string canalSegundoFactor = "CORREO";
+
     [Header("Textos")]
     public TMP_Text textoMensajeLogin;
     public TMP_Text textoMensajeInvitado;
@@ -81,14 +94,20 @@ public class AlgoLabStartUIController : MonoBehaviour
     public bool mostrarTutorialDespuesDeEntrar = true;
     public float retrasoTutorialDespuesDeEntrar = 2f;
 
-    [Tooltip("Si está activo, también muestra el tutorial cuando entra automáticamente por sesión guardada.")]
-    public bool mostrarTutorialConSesionGuardada = false;
+    [Tooltip("Compatibilidad visual. El hito real del tutorial pertenece a la cuenta y siempre se respeta.")]
+    public bool mostrarTutorialConSesionGuardada = true;
 
     [Header("Debug")]
     public bool mostrarDebug = true;
 
     private bool procesandoLogin = false;
     private bool cerrandoSesion = false;
+    private bool puedeReintentarValidacionSesionGuardada = false;
+    private bool esperandoSegundoFactor = false;
+    private string desafioSegundoFactorId = string.Empty;
+    private float segundoFactorExpiraEn;
+    private float segundoFactorReenvioEn;
+    private Coroutine rutinaAnimacionSegundoFactor;
     private Coroutine rutinaTutorialBienvenida;
     private int generacionOperacion;
 
@@ -116,6 +135,12 @@ public class AlgoLabStartUIController : MonoBehaviour
             rutinaTutorialBienvenida = null;
         }
 
+        if (rutinaAnimacionSegundoFactor != null)
+        {
+            StopCoroutine(rutinaAnimacionSegundoFactor);
+            rutinaAnimacionSegundoFactor = null;
+        }
+
         foreach (KeyValuePair<GameObject, Coroutine> par in rutinasTransicion)
         {
             if (par.Value != null)
@@ -137,6 +162,9 @@ public class AlgoLabStartUIController : MonoBehaviour
         DesconectarBoton(btnConfirmarInvitado, EntrarComoInvitado);
         DesconectarBoton(btnCancelarInvitado, CancelarInvitadoYVolverInicio);
         DesconectarBoton(btnCerrarSesion, CerrarSesionYVolverInicio);
+        DesconectarBoton(btnVerificarSegundoFactor, VerificarSegundoFactorDesdeUI);
+        DesconectarBoton(btnReenviarSegundoFactor, ReenviarSegundoFactorDesdeUI);
+        DesconectarBoton(btnVolverSegundoFactor, VolverDesdeSegundoFactor);
     }
 
     private static void DesconectarBoton(Button boton, UnityEngine.Events.UnityAction accion)
@@ -149,6 +177,7 @@ public class AlgoLabStartUIController : MonoBehaviour
     {
         BuscarReferencias();
         AsegurarBotonVolverDesdeLogin();
+        AsegurarInterfazSegundoFactor();
         PrepararPantallasParaTransicion();
         ConectarBotones();
     }
@@ -164,17 +193,10 @@ public class AlgoLabStartUIController : MonoBehaviour
             sessionManager != null &&
             sessionManager.EstaAutenticado)
         {
-            DebugLog("START UI: existe sesión autenticada guardada. Entrando directo al juego.");
-
-            AlgoLabRoomScanGuard.NotificarJugarPresionado();
-            OcultarTodasLasPantallasInmediato();
-            OnAccesoPermitido?.Invoke();
-
-            if (mostrarTutorialConSesionGuardada)
-            {
-                ProgramarTutorialBienvenida();
-            }
-
+            DebugLog(
+                "START UI: existe sesión autenticada guardada. Se validará antes de permitir acceso."
+            );
+            ValidarSesionGuardadaAntesDeEntrar();
             return;
         }
 
@@ -193,6 +215,40 @@ public class AlgoLabStartUIController : MonoBehaviour
         else
         {
             MostrarPantallaSeleccionModo();
+        }
+    }
+
+    private void Update()
+    {
+        if (!esperandoSegundoFactor || panelSegundoFactor == null || !panelSegundoFactor.activeInHierarchy)
+        {
+            return;
+        }
+
+        float restante = Mathf.Max(0f, segundoFactorExpiraEn - Time.unscaledTime);
+        float reenvio = Mathf.Max(0f, segundoFactorReenvioEn - Time.unscaledTime);
+
+        if (textoTiempoSegundoFactor != null)
+        {
+            int segundos = Mathf.CeilToInt(restante);
+            textoTiempoSegundoFactor.text = restante > 0f
+                ? "Código vigente  " + (segundos / 60).ToString("00") + ":" + (segundos % 60).ToString("00")
+                : "El código venció. Solicita uno nuevo.";
+            textoTiempoSegundoFactor.color = restante > 20f
+                ? new Color(0.48f, 1f, 0.78f, 1f)
+                : new Color(1f, 0.48f, 0.42f, 1f);
+        }
+
+        if (btnReenviarSegundoFactor != null)
+        {
+            btnReenviarSegundoFactor.interactable = !procesandoLogin && reenvio <= 0f;
+            TMP_Text etiqueta = btnReenviarSegundoFactor.GetComponentInChildren<TMP_Text>(true);
+            if (etiqueta != null)
+            {
+                etiqueta.text = reenvio > 0f
+                    ? "Reenviar (" + Mathf.CeilToInt(reenvio) + ")"
+                    : "Reenviar código";
+            }
         }
     }
 
@@ -388,6 +444,234 @@ public class AlgoLabStartUIController : MonoBehaviour
         }
     }
 
+    private void AsegurarInterfazSegundoFactor()
+    {
+        if (pantallaLogin == null || inputCorreo == null || btnEntrarLogin == null)
+        {
+            return;
+        }
+
+        Transform existente = pantallaLogin.transform.Find("PanelSegundoFactorSeguro");
+        if (panelSegundoFactor == null && existente != null)
+        {
+            panelSegundoFactor = existente.gameObject;
+        }
+
+        if (panelSegundoFactor == null)
+        {
+            panelSegundoFactor = new GameObject(
+                "PanelSegundoFactorSeguro",
+                typeof(RectTransform),
+                typeof(Image),
+                typeof(Outline),
+                typeof(CanvasGroup)
+            );
+            RectTransform panelRect = panelSegundoFactor.GetComponent<RectTransform>();
+            panelRect.SetParent(pantallaLogin.transform, false);
+            panelRect.anchorMin = new Vector2(0.04f, 0.05f);
+            panelRect.anchorMax = new Vector2(0.96f, 0.95f);
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            panelRect.localScale = Vector3.one;
+
+            Image fondo = panelSegundoFactor.GetComponent<Image>();
+            fondo.color = new Color(0.018f, 0.055f, 0.052f, 0.985f);
+            Outline borde = panelSegundoFactor.GetComponent<Outline>();
+            borde.effectColor = new Color(0.12f, 1f, 0.68f, 0.9f);
+            borde.effectDistance = new Vector2(2f, -2f);
+
+            textoTituloSegundoFactor = CrearTextoSegundoFactor(
+                "TituloSegundoFactor",
+                "VERIFICACIÓN EN DOS PASOS",
+                new Vector2(0.08f, 0.79f),
+                new Vector2(0.92f, 0.94f),
+                32f,
+                new Color(0.43f, 1f, 0.78f, 1f)
+            );
+            textoDestinoSegundoFactor = CrearTextoSegundoFactor(
+                "DestinoSegundoFactor",
+                "Enviamos un código de 6 dígitos.",
+                new Vector2(0.08f, 0.66f),
+                new Vector2(0.92f, 0.79f),
+                20f,
+                new Color(0.82f, 0.92f, 0.9f, 1f)
+            );
+
+            GameObject codigoObjeto = Instantiate(inputCorreo.gameObject, panelSegundoFactor.transform, false);
+            codigoObjeto.name = "InputCodigoSegundoFactor";
+            codigoObjeto.SetActive(true);
+            inputCodigoSegundoFactor = codigoObjeto.GetComponent<TMP_InputField>();
+            RectTransform codigoRect = codigoObjeto.transform as RectTransform;
+            ConfigurarRectAnclado(
+                codigoRect,
+                new Vector2(0.18f, 0.43f),
+                new Vector2(0.82f, 0.64f)
+            );
+            inputCodigoSegundoFactor.onValueChanged.RemoveAllListeners();
+            inputCodigoSegundoFactor.onEndEdit.RemoveAllListeners();
+            inputCodigoSegundoFactor.text = string.Empty;
+            inputCodigoSegundoFactor.characterLimit = 6;
+            inputCodigoSegundoFactor.contentType = TMP_InputField.ContentType.IntegerNumber;
+            inputCodigoSegundoFactor.lineType = TMP_InputField.LineType.SingleLine;
+            if (inputCodigoSegundoFactor.textComponent != null)
+            {
+                inputCodigoSegundoFactor.textComponent.alignment = TextAlignmentOptions.Center;
+                inputCodigoSegundoFactor.textComponent.fontSize = 42f;
+                inputCodigoSegundoFactor.textComponent.characterSpacing = 20f;
+                inputCodigoSegundoFactor.textComponent.color = Color.white;
+            }
+            TMP_Text placeholder = inputCodigoSegundoFactor.placeholder as TMP_Text;
+            if (placeholder != null)
+            {
+                placeholder.text = "•  •  •  •  •  •";
+                placeholder.alignment = TextAlignmentOptions.Center;
+            }
+            Outline bordeCodigo = codigoObjeto.GetComponent<Outline>();
+            if (bordeCodigo == null)
+                bordeCodigo = codigoObjeto.AddComponent<Outline>();
+            bordeCodigo.effectColor = new Color(0.18f, 1f, 0.68f, 0.85f);
+            bordeCodigo.effectDistance = new Vector2(2f, -2f);
+
+            textoTiempoSegundoFactor = CrearTextoSegundoFactor(
+                "TiempoSegundoFactor",
+                "Código vigente  05:00",
+                new Vector2(0.1f, 0.34f),
+                new Vector2(0.9f, 0.43f),
+                17f,
+                new Color(0.48f, 1f, 0.78f, 1f)
+            );
+            textoEstadoSegundoFactor = CrearTextoSegundoFactor(
+                "EstadoSegundoFactor",
+                string.Empty,
+                new Vector2(0.08f, 0.25f),
+                new Vector2(0.92f, 0.35f),
+                16f,
+                Color.white
+            );
+
+            btnVerificarSegundoFactor = CrearBotonSegundoFactor(
+                "BtnVerificarSegundoFactor",
+                "Verificar y entrar",
+                new Vector2(0.08f, 0.08f),
+                new Vector2(0.42f, 0.22f),
+                new Color(0.09f, 0.72f, 0.49f, 1f)
+            );
+            btnReenviarSegundoFactor = CrearBotonSegundoFactor(
+                "BtnReenviarSegundoFactor",
+                "Reenviar código",
+                new Vector2(0.44f, 0.08f),
+                new Vector2(0.7f, 0.22f),
+                new Color(0.09f, 0.27f, 0.24f, 1f)
+            );
+            btnVolverSegundoFactor = CrearBotonSegundoFactor(
+                "BtnVolverSegundoFactor",
+                "Volver",
+                new Vector2(0.72f, 0.08f),
+                new Vector2(0.92f, 0.22f),
+                new Color(0.14f, 0.17f, 0.18f, 1f)
+            );
+        }
+
+        if (inputCodigoSegundoFactor != null)
+        {
+            inputCodigoSegundoFactor.onValueChanged.RemoveListener(FiltrarCodigoSegundoFactor);
+            inputCodigoSegundoFactor.onValueChanged.AddListener(FiltrarCodigoSegundoFactor);
+        }
+        panelSegundoFactor.transform.SetAsLastSibling();
+        panelSegundoFactor.SetActive(false);
+
+        AlgoLabVRInputFieldKeyboard[] teclados = FindObjectsByType<AlgoLabVRInputFieldKeyboard>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None
+        );
+        for (int i = 0; i < teclados.Length; i++)
+            teclados[i].ActualizarListaInputs();
+    }
+
+    private TMP_Text CrearTextoSegundoFactor(
+        string nombre,
+        string contenido,
+        Vector2 anclaMin,
+        Vector2 anclaMax,
+        float tamano,
+        Color color
+    )
+    {
+        GameObject objeto = new GameObject(nombre, typeof(RectTransform), typeof(TextMeshProUGUI));
+        RectTransform rect = objeto.GetComponent<RectTransform>();
+        rect.SetParent(panelSegundoFactor.transform, false);
+        ConfigurarRectAnclado(rect, anclaMin, anclaMax);
+        TMP_Text texto = objeto.GetComponent<TMP_Text>();
+        if (textoMensajeLogin != null && textoMensajeLogin.font != null)
+            texto.font = textoMensajeLogin.font;
+        texto.text = contenido;
+        texto.fontSize = tamano;
+        texto.color = color;
+        texto.alignment = TextAlignmentOptions.Center;
+        texto.enableWordWrapping = true;
+        texto.raycastTarget = false;
+        return texto;
+    }
+
+    private Button CrearBotonSegundoFactor(
+        string nombre,
+        string etiqueta,
+        Vector2 anclaMin,
+        Vector2 anclaMax,
+        Color color
+    )
+    {
+        GameObject objeto = Instantiate(btnEntrarLogin.gameObject, panelSegundoFactor.transform, false);
+        objeto.name = nombre;
+        objeto.SetActive(true);
+        RectTransform rect = objeto.transform as RectTransform;
+        ConfigurarRectAnclado(rect, anclaMin, anclaMax);
+        Button boton = objeto.GetComponent<Button>();
+        boton.onClick.RemoveAllListeners();
+        Image imagen = objeto.GetComponent<Image>();
+        if (imagen != null)
+            imagen.color = color;
+        TMP_Text texto = objeto.GetComponentInChildren<TMP_Text>(true);
+        if (texto != null)
+        {
+            texto.text = etiqueta;
+            texto.alignment = TextAlignmentOptions.Center;
+            texto.fontSize = Mathf.Min(texto.fontSize, 17f);
+        }
+        return boton;
+    }
+
+    private static void ConfigurarRectAnclado(RectTransform rect, Vector2 anclaMin, Vector2 anclaMax)
+    {
+        if (rect == null)
+            return;
+        rect.anchorMin = anclaMin;
+        rect.anchorMax = anclaMax;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.anchoredPosition = Vector2.zero;
+        rect.localScale = Vector3.one;
+        LayoutElement layout = rect.GetComponent<LayoutElement>();
+        if (layout != null)
+            layout.ignoreLayout = true;
+    }
+
+    private void FiltrarCodigoSegundoFactor(string valor)
+    {
+        if (inputCodigoSegundoFactor == null)
+            return;
+        System.Text.StringBuilder limpio = new System.Text.StringBuilder(6);
+        for (int i = 0; i < valor.Length && limpio.Length < 6; i++)
+        {
+            if (char.IsDigit(valor[i]))
+                limpio.Append(valor[i]);
+        }
+        string resultado = limpio.ToString();
+        if (!string.Equals(valor, resultado, System.StringComparison.Ordinal))
+            inputCodigoSegundoFactor.SetTextWithoutNotify(resultado);
+    }
+
     private static void ConfigurarBotonDeFila(Button boton, float ancho, float alto)
     {
         if (boton == null)
@@ -487,6 +771,24 @@ public class AlgoLabStartUIController : MonoBehaviour
             btnCerrarSesion.onClick.RemoveListener(CerrarSesionYVolverInicio);
             btnCerrarSesion.onClick.AddListener(CerrarSesionYVolverInicio);
         }
+
+        if (btnVerificarSegundoFactor != null)
+        {
+            btnVerificarSegundoFactor.onClick.RemoveListener(VerificarSegundoFactorDesdeUI);
+            btnVerificarSegundoFactor.onClick.AddListener(VerificarSegundoFactorDesdeUI);
+        }
+
+        if (btnReenviarSegundoFactor != null)
+        {
+            btnReenviarSegundoFactor.onClick.RemoveListener(ReenviarSegundoFactorDesdeUI);
+            btnReenviarSegundoFactor.onClick.AddListener(ReenviarSegundoFactorDesdeUI);
+        }
+
+        if (btnVolverSegundoFactor != null)
+        {
+            btnVolverSegundoFactor.onClick.RemoveListener(VolverDesdeSegundoFactor);
+            btnVolverSegundoFactor.onClick.AddListener(VolverDesdeSegundoFactor);
+        }
     }
 
     private void ConfigurarTextosIniciales()
@@ -530,6 +832,13 @@ public class AlgoLabStartUIController : MonoBehaviour
         CambiarPantalla(pantallaLogin);
         LimpiarMensajeLogin();
 
+        if (!esperandoSegundoFactor)
+        {
+            MostrarElementosCredenciales(true);
+            if (panelSegundoFactor != null)
+                panelSegundoFactor.SetActive(false);
+        }
+
         if (inputCorreo != null)
         {
             inputCorreo.Select();
@@ -571,6 +880,7 @@ public class AlgoLabStartUIController : MonoBehaviour
         }
 
         procesandoLogin = false;
+        ReiniciarSegundoFactor(false);
         ActivarInteractableLogin(true);
         LimpiarCamposLogin();
         MostrarPantallaBienvenida();
@@ -606,6 +916,16 @@ public class AlgoLabStartUIController : MonoBehaviour
         string correo = inputCorreo != null ? inputCorreo.text : "";
         string contrasena = inputContrasena != null ? inputContrasena.text : "";
 
+        if (puedeReintentarValidacionSesionGuardada &&
+            sessionManager != null &&
+            sessionManager.EstaAutenticado &&
+            string.IsNullOrWhiteSpace(correo) &&
+            string.IsNullOrWhiteSpace(contrasena))
+        {
+            ValidarSesionGuardadaAntesDeEntrar();
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(correo))
         {
             MostrarErrorLogin("Escribe tu correo.");
@@ -618,37 +938,415 @@ public class AlgoLabStartUIController : MonoBehaviour
             return;
         }
 
+        correo = correo.Trim().ToLowerInvariant();
+        if (!correo.EndsWith("@campusucc.edu.co", System.StringComparison.OrdinalIgnoreCase))
+        {
+            MostrarErrorLogin("Usa tu correo institucional terminado en @campusucc.edu.co.");
+            return;
+        }
+
         procesandoLogin = true;
         int operacion = ++generacionOperacion;
         ActivarInteractableLogin(false);
-        MostrarMensajeLogin("Iniciando sesión...");
+        MostrarMensajeLogin("Verificando credenciales y preparando tu código seguro...");
 
-        backendClient.IniciarSesion(correo, contrasena, (ok, mensaje, respuesta) =>
+        backendClient.SolicitarSegundoFactor(
+            correo,
+            contrasena,
+            canalSegundoFactor,
+            (ok, mensaje, desafio) =>
+            {
+                if (operacion != generacionOperacion || !isActiveAndEnabled)
+                {
+                    return;
+                }
+
+                if (!ok)
+                {
+                    procesandoLogin = false;
+                    ActivarInteractableLogin(true);
+                    MostrarErrorLogin(mensaje);
+                    return;
+                }
+
+                procesandoLogin = false;
+                MostrarDesafioSegundoFactor(desafio, mensaje);
+            }
+        );
+    }
+
+    private void MostrarDesafioSegundoFactor(
+        AlgoLabBackendClient.DesafioSegundoFactorResponse desafio,
+        string mensaje
+    )
+    {
+        AsegurarInterfazSegundoFactor();
+        if (desafio == null || string.IsNullOrWhiteSpace(desafio.desafioId) || panelSegundoFactor == null)
+        {
+            MostrarErrorLogin("No se pudo abrir la verificación de seguridad. Inténtalo de nuevo.");
+            ActivarInteractableLogin(true);
+            return;
+        }
+
+        esperandoSegundoFactor = true;
+        desafioSegundoFactorId = desafio.desafioId;
+        segundoFactorExpiraEn = Time.unscaledTime + Mathf.Max(1, desafio.expiraEnSegundos);
+        segundoFactorReenvioEn = Time.unscaledTime + Mathf.Max(0, desafio.reenvioDisponibleEnSegundos);
+        MostrarElementosCredenciales(false);
+        panelSegundoFactor.SetActive(true);
+        panelSegundoFactor.transform.SetAsLastSibling();
+
+        string canal = string.Equals(desafio.canal, "SMS", System.StringComparison.OrdinalIgnoreCase)
+            ? "mensaje de texto"
+            : "correo institucional";
+        if (textoDestinoSegundoFactor != null)
+        {
+            textoDestinoSegundoFactor.text =
+                "Enviamos 6 dígitos por " + canal + " a\n" +
+                (string.IsNullOrWhiteSpace(desafio.destinoEnmascarado)
+                    ? "tu destino verificado"
+                    : desafio.destinoEnmascarado);
+        }
+        if (textoEstadoSegundoFactor != null)
+        {
+            textoEstadoSegundoFactor.color = new Color(0.75f, 0.92f, 0.87f, 1f);
+            textoEstadoSegundoFactor.text = string.IsNullOrWhiteSpace(mensaje)
+                ? "Escribe el código para abrir tu sesión."
+                : mensaje;
+        }
+        if (inputCodigoSegundoFactor != null)
+        {
+            inputCodigoSegundoFactor.SetTextWithoutNotify(string.Empty);
+            inputCodigoSegundoFactor.interactable = true;
+            inputCodigoSegundoFactor.Select();
+        }
+        ActivarInteractableSegundoFactor(true);
+
+        if (rutinaAnimacionSegundoFactor != null)
+            StopCoroutine(rutinaAnimacionSegundoFactor);
+        rutinaAnimacionSegundoFactor = StartCoroutine(AnimarEntradaSegundoFactor());
+
+        AlgoLabVRInputFieldKeyboard[] teclados = FindObjectsByType<AlgoLabVRInputFieldKeyboard>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None
+        );
+        for (int i = 0; i < teclados.Length; i++)
+            teclados[i].ActualizarListaInputs();
+    }
+
+    public void VerificarSegundoFactorDesdeUI()
+    {
+        if (procesandoLogin || !esperandoSegundoFactor || backendClient == null)
+            return;
+
+        if (Time.unscaledTime >= segundoFactorExpiraEn)
+        {
+            MostrarErrorSegundoFactor("El código venció. Pulsa Reenviar código.");
+            return;
+        }
+
+        string codigo = inputCodigoSegundoFactor != null
+            ? inputCodigoSegundoFactor.text.Trim()
+            : string.Empty;
+        if (codigo.Length != 6)
+        {
+            MostrarErrorSegundoFactor("Escribe los 6 dígitos del código.");
+            return;
+        }
+
+        procesandoLogin = true;
+        int operacion = ++generacionOperacion;
+        ActivarInteractableSegundoFactor(false);
+        MostrarEstadoSegundoFactor("Comprobando el código de forma segura...", false);
+        backendClient.VerificarSegundoFactor(
+            desafioSegundoFactorId,
+            codigo,
+            (ok, mensaje, respuesta) =>
+            {
+                if (operacion != generacionOperacion || !isActiveAndEnabled)
+                    return;
+
+                if (!ok)
+                {
+                    procesandoLogin = false;
+                    ActivarInteractableSegundoFactor(true);
+                    MostrarErrorSegundoFactor(mensaje);
+                    if (inputCodigoSegundoFactor != null)
+                    {
+                        inputCodigoSegundoFactor.SetTextWithoutNotify(string.Empty);
+                        inputCodigoSegundoFactor.Select();
+                    }
+                    return;
+                }
+
+                esperandoSegundoFactor = false;
+                desafioSegundoFactorId = string.Empty;
+                if (panelSegundoFactor != null)
+                    panelSegundoFactor.SetActive(false);
+                MostrarMensajeLogin("Sesión protegida iniciada correctamente.");
+
+                if (consultarProgresoDespuesDeLogin)
+                    ConsultarProgresoYEntrar(operacion);
+                else
+                    FinalizarEntradaPorLogin(operacion);
+            }
+        );
+    }
+
+    public void ReenviarSegundoFactorDesdeUI()
+    {
+        if (procesandoLogin ||
+            !esperandoSegundoFactor ||
+            backendClient == null ||
+            Time.unscaledTime < segundoFactorReenvioEn)
+        {
+            return;
+        }
+
+        procesandoLogin = true;
+        int operacion = ++generacionOperacion;
+        ActivarInteractableSegundoFactor(false);
+        MostrarEstadoSegundoFactor("Enviando un código nuevo...", false);
+        backendClient.ReenviarSegundoFactor(
+            desafioSegundoFactorId,
+            (ok, mensaje, desafio) =>
+            {
+                if (operacion != generacionOperacion || !isActiveAndEnabled)
+                    return;
+                procesandoLogin = false;
+                if (!ok)
+                {
+                    ActivarInteractableSegundoFactor(true);
+                    MostrarErrorSegundoFactor(mensaje);
+                    return;
+                }
+                MostrarDesafioSegundoFactor(desafio, "Código renovado. Usa únicamente el más reciente.");
+            }
+        );
+    }
+
+    public void VolverDesdeSegundoFactor()
+    {
+        generacionOperacion++;
+        backendClient?.CancelarInicioSesionPendiente();
+        procesandoLogin = false;
+        ReiniciarSegundoFactor(true);
+        if (inputContrasena != null)
+            inputContrasena.text = string.Empty;
+        ActivarInteractableLogin(true);
+        MostrarMensajeLogin("Verificación cancelada. Puedes iniciar de nuevo.");
+    }
+
+    private void ReiniciarSegundoFactor(bool mostrarCredenciales)
+    {
+        esperandoSegundoFactor = false;
+        desafioSegundoFactorId = string.Empty;
+        segundoFactorExpiraEn = 0f;
+        segundoFactorReenvioEn = 0f;
+        if (rutinaAnimacionSegundoFactor != null)
+        {
+            StopCoroutine(rutinaAnimacionSegundoFactor);
+            rutinaAnimacionSegundoFactor = null;
+        }
+        if (inputCodigoSegundoFactor != null)
+            inputCodigoSegundoFactor.SetTextWithoutNotify(string.Empty);
+        if (panelSegundoFactor != null)
+            panelSegundoFactor.SetActive(false);
+        MostrarElementosCredenciales(mostrarCredenciales);
+    }
+
+    private void MostrarElementosCredenciales(bool mostrar)
+    {
+        if (inputCorreo != null)
+            inputCorreo.gameObject.SetActive(mostrar);
+        if (inputContrasena != null)
+            inputContrasena.gameObject.SetActive(mostrar);
+        if (btnEntrarLogin != null && btnEntrarLogin.transform.parent != null)
+            btnEntrarLogin.transform.parent.gameObject.SetActive(mostrar);
+        else if (btnEntrarLogin != null)
+            btnEntrarLogin.gameObject.SetActive(mostrar);
+    }
+
+    private void ActivarInteractableSegundoFactor(bool activo)
+    {
+        if (inputCodigoSegundoFactor != null)
+            inputCodigoSegundoFactor.interactable = activo;
+        if (btnVerificarSegundoFactor != null)
+            btnVerificarSegundoFactor.interactable = activo;
+        if (btnVolverSegundoFactor != null)
+            btnVolverSegundoFactor.interactable = activo;
+        if (btnReenviarSegundoFactor != null)
+            btnReenviarSegundoFactor.interactable = activo && Time.unscaledTime >= segundoFactorReenvioEn;
+    }
+
+    private void MostrarEstadoSegundoFactor(string mensaje, bool error)
+    {
+        if (textoEstadoSegundoFactor == null)
+            return;
+        textoEstadoSegundoFactor.text = mensaje;
+        textoEstadoSegundoFactor.color = error
+            ? new Color(1f, 0.35f, 0.32f, 1f)
+            : new Color(0.75f, 0.92f, 0.87f, 1f);
+    }
+
+    private void MostrarErrorSegundoFactor(string mensaje)
+    {
+        MostrarEstadoSegundoFactor(mensaje, true);
+        Debug.LogWarning("START UI 2FA: " + mensaje);
+    }
+
+    private IEnumerator AnimarEntradaSegundoFactor()
+    {
+        if (panelSegundoFactor == null)
+            yield break;
+        CanvasGroup grupo = panelSegundoFactor.GetComponent<CanvasGroup>();
+        RectTransform rect = panelSegundoFactor.transform as RectTransform;
+        float inicio = Time.unscaledTime;
+        const float duracion = 0.45f;
+        while (Time.unscaledTime - inicio < duracion)
+        {
+            float t = Mathf.Clamp01((Time.unscaledTime - inicio) / duracion);
+            float suave = t * t * (3f - 2f * t);
+            if (grupo != null)
+                grupo.alpha = suave;
+            if (rect != null)
+                rect.localScale = Vector3.one * Mathf.Lerp(0.82f, 1f, suave);
+            yield return null;
+        }
+        if (grupo != null)
+            grupo.alpha = 1f;
+        if (rect != null)
+            rect.localScale = Vector3.one;
+
+        while (esperandoSegundoFactor && panelSegundoFactor.activeInHierarchy)
+        {
+            if (textoTituloSegundoFactor != null)
+            {
+                float pulso = 1f + Mathf.Sin(Time.unscaledTime * 3.2f) * 0.012f;
+                textoTituloSegundoFactor.rectTransform.localScale = Vector3.one * pulso;
+            }
+            yield return null;
+        }
+        rutinaAnimacionSegundoFactor = null;
+    }
+
+    private void ValidarSesionGuardadaAntesDeEntrar()
+    {
+        if (procesandoLogin)
+        {
+            return;
+        }
+
+        BuscarReferencias();
+        puedeReintentarValidacionSesionGuardada = false;
+
+        // La validación siempre se muestra en una pantalla interactiva conocida;
+        // nunca se habilitan paneles del juego mientras el token no esté aprobado.
+        MostrarPantallaLogin();
+
+        if (backendClient == null)
+        {
+            puedeReintentarValidacionSesionGuardada = true;
+            MostrarErrorLogin(
+                "No se pudo validar la sesión guardada. Revisa la conexión y pulsa Entrar para reintentar."
+            );
+            return;
+        }
+
+        procesandoLogin = true;
+        int operacion = ++generacionOperacion;
+        ActivarInteractableLogin(false);
+        MostrarMensajeLogin("Validando sesión guardada...");
+
+        backendClient.ValidarSesionActual((estado, mensaje, usuario) =>
         {
             if (operacion != generacionOperacion || !isActiveAndEnabled)
             {
                 return;
             }
 
-            if (!ok)
+            procesandoLogin = false;
+            ActivarInteractableLogin(true);
+
+            if (estado == AlgoLabBackendClient.EstadoValidacionSesion.Valida)
             {
-                procesandoLogin = false;
-                ActivarInteractableLogin(true);
-                MostrarErrorLogin(mensaje);
+                FinalizarEntradaPorSesionGuardada();
                 return;
             }
 
-            MostrarMensajeLogin("Sesión iniciada correctamente.");
+            if (estado == AlgoLabBackendClient.EstadoValidacionSesion.CredencialesInvalidas ||
+                estado == AlgoLabBackendClient.EstadoValidacionSesion.SinSesion)
+            {
+                puedeReintentarValidacionSesionGuardada = false;
+                sessionManager?.CerrarSesion();
+                MostrarPantallaLogin();
+                MostrarErrorLogin(
+                    "Tu sesión guardada venció o ya no es válida. Inicia sesión nuevamente."
+                );
+                return;
+            }
 
-            if (consultarProgresoDespuesDeLogin)
-            {
-                ConsultarProgresoYEntrar(operacion);
-            }
-            else
-            {
-                FinalizarEntradaPorLogin(operacion);
-            }
+            // Una caída de red, timeout o respuesta temporalmente inválida no
+            // invalida el token local. El botón Entrar reintenta si los campos
+            // siguen vacíos y también permite escribir credenciales nuevas.
+            puedeReintentarValidacionSesionGuardada = true;
+            MostrarPantallaLogin();
+            MostrarErrorLogin(
+                "No pudimos validar tu sesión por un problema de conexión. " +
+                "Pulsa Entrar para reintentar o escribe tus credenciales."
+            );
+            Debug.LogWarning("START UI: validación temporal fallida. " + mensaje);
         });
+    }
+
+    private void FinalizarEntradaPorSesionGuardada()
+    {
+        puedeReintentarValidacionSesionGuardada = false;
+        AlgoLabRoomScanGuard.NotificarJugarPresionado();
+        OcultarTodasLasPantallasInmediato();
+        OnAccesoPermitido?.Invoke();
+
+        // Una sesión recordada no significa que el tutorial se haya terminado.
+        // La decisión pertenece al hito sincronizado de la cuenta.
+        if (DebeMostrarTutorialBienvenida())
+        {
+            ProgramarTutorialBienvenida();
+        }
+        else
+        {
+            AsegurarPanelesCompletosSinTutorial();
+        }
+
+        DebugLog("START UI: sesión guardada validada; acceso permitido.");
+    }
+
+    /// <summary>
+    /// Expulsa de forma segura una sesión que el backend acaba de declarar
+    /// vencida o revocada, sin intentar guardar otra vez con ese mismo token.
+    /// Los fallos temporales de red nunca llaman este método.
+    /// </summary>
+    public void ManejarSesionRemotaInvalida(string detalle = null)
+    {
+        generacionOperacion++;
+        procesandoLogin = false;
+        cerrandoSesion = false;
+        BuscarReferencias();
+
+        if (rutinaTutorialBienvenida != null)
+        {
+            StopCoroutine(rutinaTutorialBienvenida);
+            rutinaTutorialBienvenida = null;
+        }
+
+        ReiniciarEstadoDelJuego();
+        sessionManager?.CerrarSesion();
+        PrepararRetornoAlMenuPrincipal();
+        LimpiarCamposLogin();
+        OnCerrarSesion?.Invoke();
+        MostrarPantallaLogin();
+        ActivarInteractableLogin(true);
+        MostrarErrorLogin("Tu sesión venció o fue cerrada. Inicia sesión nuevamente.");
+        Debug.LogWarning("START UI: sesión remota inválida. " + (detalle ?? string.Empty));
     }
 
     private void ConsultarProgresoYEntrar(int operacion)
@@ -700,7 +1398,14 @@ public class AlgoLabStartUIController : MonoBehaviour
         OnLoginCorrecto?.Invoke();
         OnAccesoPermitido?.Invoke();
 
-        ProgramarTutorialBienvenida();
+        if (mostrarTutorialDespuesDeEntrar && DebeMostrarTutorialBienvenida())
+        {
+            ProgramarTutorialBienvenida();
+        }
+        else
+        {
+            AsegurarPanelesCompletosSinTutorial();
+        }
 
         DebugLog("START UI: acceso permitido por login.");
     }
@@ -723,7 +1428,14 @@ public class AlgoLabStartUIController : MonoBehaviour
         OnInvitadoCorrecto?.Invoke();
         OnAccesoPermitido?.Invoke();
 
-        ProgramarTutorialBienvenida();
+        if (mostrarTutorialDespuesDeEntrar)
+        {
+            ProgramarTutorialBienvenida();
+        }
+        else
+        {
+            AsegurarPanelesCompletosSinTutorial();
+        }
 
         DebugLog("START UI: acceso permitido como invitado. No se guardará progreso.");
     }
@@ -732,6 +1444,7 @@ public class AlgoLabStartUIController : MonoBehaviour
     {
         if (!mostrarTutorialDespuesDeEntrar)
         {
+            AsegurarPanelesCompletosSinTutorial();
             return;
         }
 
@@ -740,8 +1453,21 @@ public class AlgoLabStartUIController : MonoBehaviour
         if (tutorialBienvenida == null)
         {
             DebugLog("START UI: no hay tutorial de bienvenida asignado.");
+            AsegurarPanelesCompletosSinTutorial();
             return;
         }
+
+        if (!DebeMostrarTutorialBienvenida())
+        {
+            DebugLog("START UI: tutorial ya completado/omitido para esta cuenta.");
+            AsegurarPanelesCompletosSinTutorial();
+            return;
+        }
+
+        AlgoLabGameAccessController acceso = FindFirstObjectByType<AlgoLabGameAccessController>(
+            FindObjectsInactive.Include
+        );
+        acceso?.PrepararPanelesParaTutorial();
 
         if (rutinaTutorialBienvenida != null)
         {
@@ -751,6 +1477,20 @@ public class AlgoLabStartUIController : MonoBehaviour
         rutinaTutorialBienvenida = StartCoroutine(
             MostrarTutorialBienvenidaDespuesDeTiempo()
         );
+    }
+
+    private bool DebeMostrarTutorialBienvenida()
+    {
+        BuscarReferencias();
+        return tutorialBienvenida == null || tutorialBienvenida.DebeMostrarTutorialParaSesionActual();
+    }
+
+    private void AsegurarPanelesCompletosSinTutorial()
+    {
+        AlgoLabGameAccessController acceso = FindFirstObjectByType<AlgoLabGameAccessController>(
+            FindObjectsInactive.Include
+        );
+        acceso?.ActivarPanelesDespuesDelTutorial();
     }
 
     private IEnumerator MostrarTutorialBienvenidaDespuesDeTiempo()
@@ -828,7 +1568,7 @@ public class AlgoLabStartUIController : MonoBehaviour
         OnCerrarSesion?.Invoke();
         MostrarPantallaBienvenida();
         cerrandoSesion = false;
-        DebugLog("START UI: sesion cerrada, progreso guardado y vuelta al inicio.");
+        DebugLog("START UI: sesion cerrada de forma segura y vuelta al inicio.");
     }
 
     private void PrepararRetornoAlMenuPrincipal()
@@ -1244,10 +1984,21 @@ public class AlgoLabStartUIController : MonoBehaviour
         {
             inputContrasena.text = "";
         }
+
+        if (inputCodigoSegundoFactor != null)
+        {
+            inputCodigoSegundoFactor.SetTextWithoutNotify(string.Empty);
+        }
     }
 
     private void ActivarInteractableLogin(bool activo)
     {
+        if (esperandoSegundoFactor)
+        {
+            ActivarInteractableSegundoFactor(activo);
+            return;
+        }
+
         if (inputCorreo != null)
         {
             inputCorreo.interactable = activo;

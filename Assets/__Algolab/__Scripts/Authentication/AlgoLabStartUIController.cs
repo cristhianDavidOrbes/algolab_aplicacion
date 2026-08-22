@@ -608,7 +608,7 @@ public class AlgoLabStartUIController : MonoBehaviour
         texto.fontSize = tamano;
         texto.color = color;
         texto.alignment = TextAlignmentOptions.Center;
-        texto.enableWordWrapping = true;
+        texto.textWrappingMode = TextWrappingModes.Normal;
         texto.raycastTarget = false;
         return texto;
     }

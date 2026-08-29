@@ -33,6 +33,20 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
     public bool abrirTecladoSistemaEnQuest = true;
     public bool cerrarTecladoAlTocarFuera = false;
 
+    [Header("Teclado VR integrado (respaldo confiable)")]
+    [Tooltip("En Quest muestra un teclado dentro del mundo y no depende del teclado nativo de Android.")]
+    public bool usarTecladoVirtualIntegradoEnQuest = false;
+
+    [Tooltip("Permite probar el teclado VR integrado en Play Mode del editor.")]
+    public bool mostrarTecladoVirtualIntegradoEnEditor = false;
+
+    public Vector2 tamanoTecladoVirtual = new Vector2(500f, 245f);
+    public Vector2 posicionTecladoEnCanvas = new Vector2(0f, -265f);
+    public Color colorFondoTeclado = new Color(0.025f, 0.045f, 0.055f, 0.98f);
+    public Color colorTecla = new Color(0.10f, 0.15f, 0.17f, 1f);
+    public Color colorTeclaHover = new Color(0.10f, 0.72f, 0.55f, 1f);
+    public Color colorTextoTecla = Color.white;
+
     [Header("Visual opcional")]
     public bool cambiarColorAlApuntar = true;
     public Color colorNormal = Color.white;
@@ -49,9 +63,21 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
     private bool gatilloDerechoAnterior;
 
     private TouchScreenKeyboard tecladoSistema;
+    private RectTransform tecladoVirtualRoot;
+    private readonly List<TeclaVirtual> teclasVirtuales = new List<TeclaVirtual>();
+    private TeclaVirtual teclaHoverActual;
+    private bool mayusculasActivas;
     private float proximaActualizacionAutomatica;
     private int ultimoConteoInputs = -1;
     private TMP_InputField inputHoverDebugAnterior;
+
+    private sealed class TeclaVirtual
+    {
+        public RectTransform rect;
+        public Image fondo;
+        public TMP_Text texto;
+        public string valor;
+    }
 
     private void Awake()
     {
@@ -61,6 +87,13 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
 
     private void Update()
     {
+        if (inputSeleccionado != null &&
+            (!inputSeleccionado.gameObject.activeInHierarchy ||
+             !inputSeleccionado.interactable || inputSeleccionado.readOnly))
+        {
+            DeseleccionarInput();
+        }
+
         if (buscarAutomaticamente && actualizarCadaFrame &&
             Time.unscaledTime >= proximaActualizacionAutomatica)
         {
@@ -88,6 +121,7 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
         }
 
         ActualizarTecladoSistema();
+        ActualizarColoresTeclas();
 
         if (cambiarColorAlApuntar)
         {
@@ -180,12 +214,39 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
                 placeholderGraphic.raycastTarget = false;
             }
         }
+
+        // Algunas versiones de la escena guardaron la contraseña como texto
+        // estándar. Se corrige por nombre para evitar mostrar la clave escrita.
+        string nombreNormalizado = input.name.ToLowerInvariant();
+        if (nombreNormalizado.Contains("contrase") || nombreNormalizado.Contains("password"))
+        {
+            input.contentType = TMP_InputField.ContentType.Password;
+            input.inputType = TMP_InputField.InputType.Password;
+            input.ForceLabelUpdate();
+        }
+        else if (nombreNormalizado.Contains("correo") || nombreNormalizado.Contains("email"))
+        {
+            input.contentType = TMP_InputField.ContentType.EmailAddress;
+            input.keyboardType = TouchScreenKeyboardType.EmailAddress;
+        }
     }
 
     private void RevisarRayo(Transform rayOrigin, bool presionoGatillo, string nombreControl)
     {
         if (rayOrigin == null)
         {
+            return;
+        }
+
+        TeclaVirtual tecla = ObtenerTeclaBajoRayo(rayOrigin);
+        if (tecla != null)
+        {
+            teclaHoverActual = tecla;
+            if (presionoGatillo)
+            {
+                ProcesarTeclaVirtual(tecla.valor);
+            }
+
             return;
         }
 
@@ -333,6 +394,8 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             tecladoSistema = null;
         }
 
+        OcultarTecladoVirtual();
+
         if (EventSystem.current != null)
         {
             EventSystem.current.SetSelectedGameObject(null);
@@ -341,7 +404,18 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
 
     private void AbrirTeclado(TMP_InputField input)
     {
-        if (!abrirTecladoSistemaEnQuest || input == null)
+        if (input == null)
+        {
+            return;
+        }
+
+        if (DebeUsarTecladoVirtualIntegrado())
+        {
+            MostrarTecladoVirtual(input);
+            return;
+        }
+
+        if (!abrirTecladoSistemaEnQuest)
         {
             return;
         }
@@ -376,6 +450,346 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             Debug.Log("VR INPUT FIELD: en editor usa el teclado físico del PC.");
         }
 #endif
+    }
+
+    private bool DebeUsarTecladoVirtualIntegrado()
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        return usarTecladoVirtualIntegradoEnQuest;
+#else
+        return mostrarTecladoVirtualIntegradoEnEditor;
+#endif
+    }
+
+    private void MostrarTecladoVirtual(TMP_InputField input)
+    {
+        Canvas canvas = input != null ? input.GetComponentInParent<Canvas>(true) : null;
+        if (canvas == null)
+        {
+            Debug.LogWarning("VR INPUT FIELD: no se encontró el Canvas para crear el teclado VR.");
+            return;
+        }
+
+        canvas = canvas.rootCanvas != null ? canvas.rootCanvas : canvas;
+        if (tecladoVirtualRoot == null || tecladoVirtualRoot.parent != canvas.transform)
+        {
+            DestruirTecladoVirtual();
+            CrearTecladoVirtual(canvas, input.textComponent != null ? input.textComponent.font : null);
+        }
+
+        if (tecladoVirtualRoot == null)
+        {
+            return;
+        }
+
+        tecladoVirtualRoot.anchoredPosition = posicionTecladoEnCanvas;
+        tecladoVirtualRoot.localRotation = Quaternion.identity;
+        tecladoVirtualRoot.localScale = Vector3.one;
+        tecladoVirtualRoot.SetAsLastSibling();
+        tecladoVirtualRoot.gameObject.SetActive(true);
+        ActualizarEtiquetasMayusculas();
+    }
+
+    private void CrearTecladoVirtual(Canvas canvas, TMP_FontAsset fuente)
+    {
+        GameObject root = new GameObject(
+            "TecladoVR_Login_Runtime",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image),
+            typeof(Outline)
+        );
+
+        tecladoVirtualRoot = root.GetComponent<RectTransform>();
+        tecladoVirtualRoot.SetParent(canvas.transform, false);
+        tecladoVirtualRoot.anchorMin = tecladoVirtualRoot.anchorMax = new Vector2(0.5f, 0.5f);
+        tecladoVirtualRoot.pivot = new Vector2(0.5f, 0.5f);
+        tecladoVirtualRoot.sizeDelta = tamanoTecladoVirtual;
+        tecladoVirtualRoot.anchoredPosition = posicionTecladoEnCanvas;
+
+        Image fondo = root.GetComponent<Image>();
+        fondo.color = colorFondoTeclado;
+        fondo.raycastTarget = false;
+
+        Outline borde = root.GetComponent<Outline>();
+        borde.effectColor = new Color(0.10f, 0.90f, 0.68f, 0.9f);
+        borde.effectDistance = new Vector2(2f, -2f);
+
+        string[][] filas =
+        {
+            new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" },
+            new[] { "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" },
+            new[] { "A", "S", "D", "F", "G", "H", "J", "K", "L" },
+            new[] { "Z", "X", "C", "V", "B", "N", "M" },
+            new[] { "@", ".", "-", "_", "!", "MAYÚS", "ESPACIO", "BORRAR", "LISTO" }
+        };
+
+        const float margenX = 12f;
+        const float margenY = 12f;
+        const float separacion = 5f;
+        const float altoTecla = 39f;
+        float yInicial = tamanoTecladoVirtual.y * 0.5f - margenY - altoTecla * 0.5f;
+
+        for (int fila = 0; fila < filas.Length; fila++)
+        {
+            string[] valores = filas[fila];
+            float pesoTotal = 0f;
+            for (int i = 0; i < valores.Length; i++)
+            {
+                pesoTotal += PesoTecla(valores[i]);
+            }
+
+            float anchoDisponible = tamanoTecladoVirtual.x - margenX * 2f -
+                separacion * (valores.Length - 1);
+            float unidad = anchoDisponible / Mathf.Max(1f, pesoTotal);
+            float anchoFila = anchoDisponible + separacion * (valores.Length - 1);
+            float x = -anchoFila * 0.5f;
+
+            for (int i = 0; i < valores.Length; i++)
+            {
+                float ancho = unidad * PesoTecla(valores[i]);
+                CrearTeclaVirtual(
+                    tecladoVirtualRoot,
+                    valores[i],
+                    new Vector2(x + ancho * 0.5f, yInicial - fila * (altoTecla + separacion)),
+                    new Vector2(ancho, altoTecla),
+                    fuente
+                );
+                x += ancho + separacion;
+            }
+        }
+
+        tecladoVirtualRoot.gameObject.SetActive(false);
+    }
+
+    private static float PesoTecla(string valor)
+    {
+        switch (valor)
+        {
+            case "MAYÚS": return 1.8f;
+            case "ESPACIO": return 2.4f;
+            case "BORRAR": return 2f;
+            case "LISTO": return 1.6f;
+            default: return 1f;
+        }
+    }
+
+    private void CrearTeclaVirtual(
+        RectTransform padre,
+        string valor,
+        Vector2 posicion,
+        Vector2 tamano,
+        TMP_FontAsset fuente)
+    {
+        GameObject objeto = new GameObject(
+            "Tecla_" + valor,
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image),
+            typeof(Outline)
+        );
+        RectTransform rect = objeto.GetComponent<RectTransform>();
+        rect.SetParent(padre, false);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = posicion;
+        rect.sizeDelta = tamano;
+
+        Image imagen = objeto.GetComponent<Image>();
+        imagen.color = colorTecla;
+        imagen.raycastTarget = false;
+
+        Outline borde = objeto.GetComponent<Outline>();
+        borde.effectColor = new Color(0.45f, 0.62f, 0.66f, 0.65f);
+        borde.effectDistance = new Vector2(1f, -1f);
+
+        GameObject objetoTexto = new GameObject(
+            "Texto",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(TextMeshProUGUI)
+        );
+        RectTransform rectTexto = objetoTexto.GetComponent<RectTransform>();
+        rectTexto.SetParent(rect, false);
+        rectTexto.anchorMin = Vector2.zero;
+        rectTexto.anchorMax = Vector2.one;
+        rectTexto.offsetMin = Vector2.zero;
+        rectTexto.offsetMax = Vector2.zero;
+
+        TMP_Text texto = objetoTexto.GetComponent<TMP_Text>();
+        texto.text = valor;
+        texto.font = fuente;
+        texto.fontSize = valor.Length > 4 ? 15f : 20f;
+        texto.color = colorTextoTecla;
+        texto.alignment = TextAlignmentOptions.Center;
+        texto.raycastTarget = false;
+        texto.textWrappingMode = TextWrappingModes.NoWrap;
+
+        teclasVirtuales.Add(new TeclaVirtual
+        {
+            rect = rect,
+            fondo = imagen,
+            texto = texto,
+            valor = valor
+        });
+    }
+
+    private TeclaVirtual ObtenerTeclaBajoRayo(Transform rayOrigin)
+    {
+        if (rayOrigin == null || tecladoVirtualRoot == null ||
+            !tecladoVirtualRoot.gameObject.activeInHierarchy)
+        {
+            return null;
+        }
+
+        Ray ray = new Ray(rayOrigin.position, rayOrigin.forward);
+        TeclaVirtual mejor = null;
+        float mejorDistancia = float.MaxValue;
+
+        for (int i = 0; i < teclasVirtuales.Count; i++)
+        {
+            TeclaVirtual tecla = teclasVirtuales[i];
+            if (tecla == null || tecla.rect == null || !tecla.rect.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (RayoTocaRect(ray, tecla.rect, out float distancia) &&
+                distancia >= 0f && distancia <= distanciaMaxima && distancia < mejorDistancia)
+            {
+                mejor = tecla;
+                mejorDistancia = distancia;
+            }
+        }
+
+        return mejor;
+    }
+
+    private void ProcesarTeclaVirtual(string valor)
+    {
+        TMP_InputField input = inputSeleccionado;
+        if (input == null || !input.interactable || input.readOnly)
+        {
+            return;
+        }
+
+        switch (valor)
+        {
+            case "MAYÚS":
+                mayusculasActivas = !mayusculasActivas;
+                ActualizarEtiquetasMayusculas();
+                return;
+
+            case "BORRAR":
+                if (!string.IsNullOrEmpty(input.text))
+                {
+                    input.text = input.text.Substring(0, input.text.Length - 1);
+                }
+                break;
+
+            case "ESPACIO":
+                AgregarCaracterSiCabe(input, " ");
+                break;
+
+            case "LISTO":
+                input.onSubmit.Invoke(input.text);
+                input.onEndEdit.Invoke(input.text);
+                DeseleccionarInput();
+                return;
+
+            default:
+                string texto = valor;
+                if (valor.Length == 1 && char.IsLetter(valor[0]))
+                {
+                    texto = mayusculasActivas ? valor.ToUpperInvariant() : valor.ToLowerInvariant();
+                    if (mayusculasActivas)
+                    {
+                        mayusculasActivas = false;
+                        ActualizarEtiquetasMayusculas();
+                    }
+                }
+
+                AgregarCaracterSiCabe(input, texto);
+                break;
+        }
+
+        input.caretPosition = input.text.Length;
+        input.selectionAnchorPosition = input.text.Length;
+        input.selectionFocusPosition = input.text.Length;
+        input.Select();
+        input.ActivateInputField();
+    }
+
+    private static void AgregarCaracterSiCabe(TMP_InputField input, string valor)
+    {
+        if (input == null || string.IsNullOrEmpty(valor))
+        {
+            return;
+        }
+
+        if (input.characterLimit > 0 && input.text.Length + valor.Length > input.characterLimit)
+        {
+            return;
+        }
+
+        input.text += valor;
+    }
+
+    private void ActualizarEtiquetasMayusculas()
+    {
+        for (int i = 0; i < teclasVirtuales.Count; i++)
+        {
+            TeclaVirtual tecla = teclasVirtuales[i];
+            if (tecla == null || tecla.texto == null || string.IsNullOrEmpty(tecla.valor))
+            {
+                continue;
+            }
+
+            if (tecla.valor.Length == 1 && char.IsLetter(tecla.valor[0]))
+            {
+                tecla.texto.text = mayusculasActivas
+                    ? tecla.valor.ToUpperInvariant()
+                    : tecla.valor.ToLowerInvariant();
+            }
+        }
+    }
+
+    private void ActualizarColoresTeclas()
+    {
+        for (int i = 0; i < teclasVirtuales.Count; i++)
+        {
+            TeclaVirtual tecla = teclasVirtuales[i];
+            if (tecla == null || tecla.fondo == null)
+            {
+                continue;
+            }
+
+            bool esMayusActiva = tecla.valor == "MAYÚS" && mayusculasActivas;
+            tecla.fondo.color = tecla == teclaHoverActual || esMayusActiva
+                ? colorTeclaHover
+                : colorTecla;
+        }
+    }
+
+    private void OcultarTecladoVirtual()
+    {
+        teclaHoverActual = null;
+        mayusculasActivas = false;
+        if (tecladoVirtualRoot != null)
+        {
+            tecladoVirtualRoot.gameObject.SetActive(false);
+        }
+    }
+
+    private void DestruirTecladoVirtual()
+    {
+        teclasVirtuales.Clear();
+        teclaHoverActual = null;
+        if (tecladoVirtualRoot != null)
+        {
+            Destroy(tecladoVirtualRoot.gameObject);
+            tecladoVirtualRoot = null;
+        }
     }
 
     private void ActualizarTecladoSistema()
@@ -517,6 +931,7 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
     {
         DeseleccionarInput();
         inputHoverActual = null;
+        teclaHoverActual = null;
         inputHoverDebugAnterior = null;
         gatilloIzquierdoAnterior = false;
         gatilloDerechoAnterior = false;

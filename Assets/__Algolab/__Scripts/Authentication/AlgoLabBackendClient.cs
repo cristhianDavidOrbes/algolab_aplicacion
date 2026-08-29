@@ -121,6 +121,11 @@ public class AlgoLabBackendClient : MonoBehaviour
         public int intentos;
         public bool completado;
         public string[] errores;
+        public string etapa;
+        public string[] acciones_correctas;
+        public string[] objetos_manipulados;
+        public string[] dificultades_repetidas;
+        public string[] conceptos_dominados;
     }
 
     [Serializable]
@@ -131,6 +136,8 @@ public class AlgoLabBackendClient : MonoBehaviour
         public string[] fortalezas;
         public string[] aspectos_mejora;
         public string[] recomendaciones;
+        public string[] evidencias;
+        public string proximo_ejercicio;
     }
 
     [Serializable]
@@ -141,6 +148,8 @@ public class AlgoLabBackendClient : MonoBehaviour
         public string[] fortalezas;
         public string[] aspectosMejora;
         public string[] recomendaciones;
+        public string[] evidencias;
+        public string proximoEjercicio;
         public int puntajeBase;
         public int tiempoRestanteBase;
         public int intentosBase;
@@ -519,11 +528,11 @@ public class AlgoLabBackendClient : MonoBehaviour
         }
 
         correo = correo.Trim().ToLowerInvariant();
-        if (!correo.EndsWith("@campusucc.edu.co", StringComparison.OrdinalIgnoreCase))
+        if (!correo.Contains("@") || !correo.Contains(".") || correo.IndexOf("@", StringComparison.Ordinal) < 1)
         {
             callback?.Invoke(
                 false,
-                "Usa tu correo institucional terminado en @campusucc.edu.co.",
+                "Escribe un correo electrónico válido (ejemplo: usuario@dominio.com).",
                 null
             );
             yield break;
@@ -1126,6 +1135,10 @@ public class AlgoLabBackendClient : MonoBehaviour
             yield break;
         }
 
+        AlgoLabTutorContext.Snapshot contexto = AlgoLabTutorContext.Instance != null
+            ? AlgoLabTutorContext.Instance.ObtenerSnapshot(nivel)
+            : new AlgoLabTutorContext.Snapshot { nivel_id = Mathf.Max(1, nivel) };
+
         ReporteIARequest cuerpoIA = new ReporteIARequest
         {
             usuario_nombre = sessionManager != null ? sessionManager.NombreUsuario : "Estudiante",
@@ -1134,7 +1147,12 @@ public class AlgoLabBackendClient : MonoBehaviour
             tiempo_restante = Mathf.Max(0, tiempoRestante),
             intentos = Mathf.Max(1, intentos),
             completado = true,
-            errores = errores != null && errores.Length > 0 ? errores : Array.Empty<string>()
+            errores = errores != null && errores.Length > 0 ? errores : Array.Empty<string>(),
+            etapa = contexto.etapa,
+            acciones_correctas = contexto.acciones_correctas,
+            objetos_manipulados = contexto.objetos_manipulados,
+            dificultades_repetidas = contexto.dificultades_repetidas,
+            conceptos_dominados = contexto.conceptos_dominados
         };
 
         using UnityWebRequest requestIA = CrearJsonRequest(
@@ -1181,6 +1199,8 @@ public class AlgoLabBackendClient : MonoBehaviour
             fortalezas = respuestaIA.fortalezas ?? Array.Empty<string>(),
             aspectosMejora = respuestaIA.aspectos_mejora ?? Array.Empty<string>(),
             recomendaciones = respuestaIA.recomendaciones ?? Array.Empty<string>(),
+            evidencias = respuestaIA.evidencias ?? Array.Empty<string>(),
+            proximoEjercicio = respuestaIA.proximo_ejercicio ?? string.Empty,
             puntajeBase = Mathf.Max(0, puntaje),
             tiempoRestanteBase = Mathf.Max(0, tiempoRestante),
             intentosBase = Mathf.Max(1, intentos),

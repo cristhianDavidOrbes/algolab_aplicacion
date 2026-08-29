@@ -939,9 +939,9 @@ public class AlgoLabStartUIController : MonoBehaviour
         }
 
         correo = correo.Trim().ToLowerInvariant();
-        if (!correo.EndsWith("@campusucc.edu.co", System.StringComparison.OrdinalIgnoreCase))
+        if (!correo.Contains("@") || !correo.Contains(".") || correo.IndexOf("@", System.StringComparison.Ordinal) < 1)
         {
-            MostrarErrorLogin("Usa tu correo institucional terminado en @campusucc.edu.co.");
+            MostrarErrorLogin("Escribe un correo electrónico válido (ejemplo: usuario@dominio.com).");
             return;
         }
 
@@ -998,7 +998,7 @@ public class AlgoLabStartUIController : MonoBehaviour
 
         string canal = string.Equals(desafio.canal, "SMS", System.StringComparison.OrdinalIgnoreCase)
             ? "mensaje de texto"
-            : "correo institucional";
+            : "correo electrónico";
         if (textoDestinoSegundoFactor != null)
         {
             textoDestinoSegundoFactor.text =

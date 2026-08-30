@@ -30,14 +30,14 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
     public float umbralGatillo = 0.55f;
 
     [Header("Teclado")]
-    public bool abrirTecladoSistemaEnQuest = true;
+    [Tooltip("En Quest el teclado VR integrado siempre está activo. Este flag solo afecta al fallback del sistema Android (que queda congelado en modo VR inmersivo).")]
     public bool cerrarTecladoAlTocarFuera = false;
 
-    [Header("Teclado VR integrado (respaldo confiable)")]
-    [Tooltip("En Quest muestra un teclado dentro del mundo y no depende del teclado nativo de Android.")]
-    public bool usarTecladoVirtualIntegradoEnQuest = false;
+    [Header("Teclado VR integrado (único que funciona en Quest)")]
+    [Tooltip("TRUE = muestra el teclado flotante en la escena. Desactívalo solo si instalas el paquete OVRVirtualKeyboard de Meta.")]
+    public bool usarTecladoVirtualIntegradoEnQuest = true;
 
-    [Tooltip("Permite probar el teclado VR integrado en Play Mode del editor.")]
+    [Tooltip("Permite probar el teclado VR en Play Mode del editor.")]
     public bool mostrarTecladoVirtualIntegradoEnEditor = false;
 
     public Vector2 tamanoTecladoVirtual = new Vector2(500f, 245f);
@@ -46,6 +46,7 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
     public Color colorTecla = new Color(0.10f, 0.15f, 0.17f, 1f);
     public Color colorTeclaHover = new Color(0.10f, 0.72f, 0.55f, 1f);
     public Color colorTextoTecla = Color.white;
+
 
     [Header("Visual opcional")]
     public bool cambiarColorAlApuntar = true;
@@ -409,47 +410,19 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             return;
         }
 
+        // En Quest solo el teclado VR integrado funciona.
+        // TouchScreenKeyboard.Open() congela la pantalla en modo VR inmersivo.
         if (DebeUsarTecladoVirtualIntegrado())
         {
             MostrarTecladoVirtual(input);
             return;
         }
 
-        if (!abrirTecladoSistemaEnQuest)
-        {
-            return;
-        }
-
-#if UNITY_ANDROID && !UNITY_EDITOR
-        TouchScreenKeyboardType tipoTeclado = TouchScreenKeyboardType.Default;
-        bool seguro = false;
-
-        if (input.contentType == TMP_InputField.ContentType.EmailAddress)
-        {
-            tipoTeclado = TouchScreenKeyboardType.EmailAddress;
-        }
-
-        if (input.contentType == TMP_InputField.ContentType.Password)
-        {
-            tipoTeclado = TouchScreenKeyboardType.Default;
-            seguro = true;
-        }
-
-        tecladoSistema = TouchScreenKeyboard.Open(
-            input.text,
-            tipoTeclado,
-            false,
-            false,
-            seguro,
-            false,
-            input.placeholder != null ? input.placeholder.GetComponent<TMP_Text>()?.text : ""
-        );
-#else
+        // Fallback: solo se ejecuta en editor o plataformas no-Quest.
         if (mostrarDebug)
         {
-            Debug.Log("VR INPUT FIELD: en editor usa el teclado físico del PC.");
+            Debug.Log("VR INPUT FIELD: teclado VR no activo. Usa el teclado físico del PC en el editor.");
         }
-#endif
     }
 
     private bool DebeUsarTecladoVirtualIntegrado()

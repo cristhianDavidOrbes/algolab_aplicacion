@@ -33,13 +33,14 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
     [Tooltip("En Quest el teclado VR integrado siempre está activo. Este flag solo afecta al fallback del sistema Android (que queda congelado en modo VR inmersivo).")]
     public bool cerrarTecladoAlTocarFuera = false;
 
-    [Header("Teclado VR integrado (único que funciona en Quest)")]
-    [Tooltip("TRUE = muestra el teclado flotante en la escena. Desactívalo solo si instalas el paquete OVRVirtualKeyboard de Meta.")]
-    public bool usarTecladoVirtualIntegradoEnQuest = true;
+    [Header("Teclado del sistema Meta (overlay oficial)")]
+    [Tooltip("FALSE = usa el teclado overlay oficial de Meta (requiere 'oculus.software.overlay_keyboard' en AndroidManifest + focusaware=true, ya configurados). TRUE = usa el teclado VR integrado en la escena como respaldo.")]
+    public bool usarTecladoVirtualIntegradoEnQuest = false;
 
     [Tooltip("Permite probar el teclado VR en Play Mode del editor.")]
     public bool mostrarTecladoVirtualIntegradoEnEditor = false;
 
+    [Header("Configuración del teclado VR integrado (respaldo)")]
     public Vector2 tamanoTecladoVirtual = new Vector2(500f, 245f);
     public Vector2 posicionTecladoEnCanvas = new Vector2(0f, -265f);
     public Color colorFondoTeclado = new Color(0.025f, 0.045f, 0.055f, 0.98f);
@@ -410,19 +411,57 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             return;
         }
 
-        // En Quest solo el teclado VR integrado funciona.
-        // TouchScreenKeyboard.Open() congela la pantalla en modo VR inmersivo.
+        // Si el teclado VR integrado está activado como respaldo, úsalo.
         if (DebeUsarTecladoVirtualIntegrado())
         {
             MostrarTecladoVirtual(input);
             return;
         }
 
-        // Fallback: solo se ejecuta en editor o plataformas no-Quest.
+#if UNITY_ANDROID && !UNITY_EDITOR
+        // Meta System Keyboard Overlay: funciona en Quest con:
+        //  - <uses-feature android:name="oculus.software.overlay_keyboard"/> en AndroidManifest
+        //  - <meta-data android:name="com.oculus.vr.focusaware" android:value="true"/>
+        // Ambos ya están configurados en Assets/Plugins/Android/AndroidManifest.xml
+        TouchScreenKeyboardType tipoTeclado = TouchScreenKeyboardType.Default;
+        bool seguro = false;
+
+        if (input.contentType == TMP_InputField.ContentType.EmailAddress)
+        {
+            tipoTeclado = TouchScreenKeyboardType.EmailAddress;
+        }
+
+        if (input.contentType == TMP_InputField.ContentType.Password)
+        {
+            tipoTeclado = TouchScreenKeyboardType.Default;
+            seguro = true;
+        }
+
+        string placeholder = input.placeholder != null
+            ? (input.placeholder.GetComponent<TMP_Text>()?.text ?? "")
+            : "";
+
+        tecladoSistema = TouchScreenKeyboard.Open(
+            input.text,
+            tipoTeclado,
+            false,   // autoCorrection
+            false,   // multiline
+            seguro,  // secure (oculta el texto)
+            false,   // alert
+            placeholder
+        );
+
         if (mostrarDebug)
         {
-            Debug.Log("VR INPUT FIELD: teclado VR no activo. Usa el teclado físico del PC en el editor.");
+            Debug.Log("VR INPUT FIELD: abriendo teclado overlay de Meta. Status: " +
+                (tecladoSistema != null ? tecladoSistema.status.ToString() : "null"));
         }
+#else
+        if (mostrarDebug)
+        {
+            Debug.Log("VR INPUT FIELD: editor detectado. Usa el teclado físico del PC.");
+        }
+#endif
     }
 
     private bool DebeUsarTecladoVirtualIntegrado()

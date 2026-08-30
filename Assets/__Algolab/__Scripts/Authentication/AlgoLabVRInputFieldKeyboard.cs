@@ -233,6 +233,8 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             input.contentType = TMP_InputField.ContentType.EmailAddress;
             input.keyboardType = TouchScreenKeyboardType.EmailAddress;
         }
+
+        input.shouldHideMobileInput = true;
     }
 
     private void RevisarRayo(Transform rayOrigin, bool presionoGatillo, string nombreControl)
@@ -268,7 +270,9 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             return;
         }
 
-        if (presionoGatillo && cerrarTecladoAlTocarFuera)
+        // Si hay un teclado activo (sistema o integrado), NO deseleccionar por click fuera
+        // para permitir presionar teclas del teclado virtual/overlay sin perder el foco.
+        if (presionoGatillo && cerrarTecladoAlTocarFuera && tecladoSistema == null && tecladoVirtualRoot == null)
         {
             DeseleccionarInput();
         }
@@ -336,11 +340,17 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             return false;
         }
 
+        // Evaluar plano frontal y posterior para asegurar intersección
+        // independiente de la orientación o rotación del Canvas en VR.
         Plane plano = new Plane(rect.forward, rect.position);
 
         if (!plano.Raycast(ray, out distancia))
         {
-            return false;
+            plano = new Plane(-rect.forward, rect.position);
+            if (!plano.Raycast(ray, out distancia))
+            {
+                return false;
+            }
         }
 
         if (distancia < 0f)
@@ -352,7 +362,14 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
         Vector3 puntoLocal3D = rect.InverseTransformPoint(puntoMundo);
         Vector2 puntoLocal = new Vector2(puntoLocal3D.x, puntoLocal3D.y);
 
-        return rect.rect.Contains(puntoLocal);
+        // Tolerancia de 6px en bordes para interacción cómoda y precisa con rayo VR
+        Rect rectMargen = rect.rect;
+        rectMargen.xMin -= 6f;
+        rectMargen.xMax += 6f;
+        rectMargen.yMin -= 6f;
+        rectMargen.yMax += 6f;
+
+        return rectMargen.Contains(puntoLocal);
     }
 
     private void SeleccionarInput(TMP_InputField input)
@@ -442,6 +459,8 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
         string placeholder = input.placeholder != null
             ? (input.placeholder.GetComponent<TMP_Text>()?.text ?? "")
             : "";
+
+        TouchScreenKeyboard.hideInput = true;
 
         tecladoSistema = TouchScreenKeyboard.Open(
             input.text,
@@ -814,16 +833,22 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             return;
         }
 
-        if (tecladoSistema.status == TouchScreenKeyboard.Status.Visible)
+        // Sincronizar el texto mientras el usuario escribe en el teclado overlay de Meta
+        if (tecladoSistema.text != null && !string.Equals(inputSeleccionado.text, tecladoSistema.text))
         {
             inputSeleccionado.text = tecladoSistema.text;
             inputSeleccionado.caretPosition = inputSeleccionado.text.Length;
         }
 
+        // Usuario confirma con Enter / Done
         if (tecladoSistema.status == TouchScreenKeyboard.Status.Done)
         {
-            inputSeleccionado.text = tecladoSistema.text;
-            inputSeleccionado.caretPosition = inputSeleccionado.text.Length;
+            if (tecladoSistema.text != null)
+            {
+                inputSeleccionado.text = tecladoSistema.text;
+                inputSeleccionado.caretPosition = inputSeleccionado.text.Length;
+            }
+
             TMP_InputField inputFinalizado = inputSeleccionado;
             tecladoSistema = null;
             inputFinalizado.onEndEdit.Invoke(inputFinalizado.text);
@@ -831,12 +856,17 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             return;
         }
 
-        if (tecladoSistema != null &&
-            (tecladoSistema.status == TouchScreenKeyboard.Status.Canceled ||
-             tecladoSistema.status == TouchScreenKeyboard.Status.LostFocus))
+        // Usuario cancela explícitamente el teclado
+        if (tecladoSistema.status == TouchScreenKeyboard.Status.Canceled)
         {
+            tecladoSistema = null;
             DeseleccionarInput();
+            return;
         }
+
+        // IMPORTANTE: NO cerrar en TouchScreenKeyboard.Status.LostFocus.
+        // En Horizon OS (Meta Quest), al abrirse el teclado del sistema, la aplicación
+        // pierde foco temporalmente mientras el usuario escribe en el overlay de Meta.
 #endif
     }
 
@@ -852,10 +882,15 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             OVRInput.Controller.Touch
         );
 
+        bool downRaw = OVRInput.GetDown(
+            OVRInput.Button.PrimaryIndexTrigger,
+            OVRInput.Controller.LTouch
+        );
+
         float valorFinal = Mathf.Max(valorLTouch, valorTouch);
 
         bool presionadoAhora = valorFinal >= umbralGatillo;
-        bool inicioPresion = presionadoAhora && !gatilloIzquierdoAnterior;
+        bool inicioPresion = (presionadoAhora && !gatilloIzquierdoAnterior) || downRaw;
 
         gatilloIzquierdoAnterior = presionadoAhora;
 
@@ -874,10 +909,15 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             OVRInput.Controller.Touch
         );
 
+        bool downRaw = OVRInput.GetDown(
+            OVRInput.Button.PrimaryIndexTrigger,
+            OVRInput.Controller.RTouch
+        );
+
         float valorFinal = Mathf.Max(valorRTouch, valorTouch);
 
         bool presionadoAhora = valorFinal >= umbralGatillo;
-        bool inicioPresion = presionadoAhora && !gatilloDerechoAnterior;
+        bool inicioPresion = (presionadoAhora && !gatilloDerechoAnterior) || downRaw;
 
         gatilloDerechoAnterior = presionadoAhora;
 

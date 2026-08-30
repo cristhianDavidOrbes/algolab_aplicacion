@@ -84,6 +84,7 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
     private void Awake()
     {
         AsegurarEventSystem();
+        AsegurarCamaraEnCanvas();
         ActualizarListaInputs();
     }
 
@@ -99,6 +100,7 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
         if (buscarAutomaticamente && actualizarCadaFrame &&
             Time.unscaledTime >= proximaActualizacionAutomatica)
         {
+            AsegurarCamaraEnCanvas();
             ActualizarListaInputs();
             proximaActualizacionAutomatica = Time.unscaledTime +
                 Mathf.Max(0.1f, intervaloActualizacionAutomatica);
@@ -916,6 +918,45 @@ public class AlgoLabVRInputFieldKeyboard : MonoBehaviour
             else
             {
                 image.color = colorNormal;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Asigna Camera.main a todos los Canvas en modo WorldSpace que no tengan worldCamera.
+    /// Esto es CRÍTICO en VR: sin worldCamera el sistema de eventos no puede procesar
+    /// los rayos del controlador sobre la UI, y el teclado nunca se activa.
+    /// </summary>
+    private void AsegurarCamaraEnCanvas()
+    {
+        Camera camPrincipal = Camera.main;
+        if (camPrincipal == null)
+        {
+            return;
+        }
+
+        Canvas[] todosLosCanvas = FindObjectsByType<Canvas>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None
+        );
+
+        for (int i = 0; i < todosLosCanvas.Length; i++)
+        {
+            Canvas canvas = todosLosCanvas[i];
+            if (canvas == null)
+            {
+                continue;
+            }
+
+            Canvas root = canvas.rootCanvas != null ? canvas.rootCanvas : canvas;
+            if (root.renderMode == RenderMode.WorldSpace && root.worldCamera == null)
+            {
+                root.worldCamera = camPrincipal;
+
+                if (mostrarDebug)
+                {
+                    Debug.Log("VR INPUT FIELD: Camera.main asignada al Canvas WorldSpace: " + root.name);
+                }
             }
         }
     }

@@ -93,11 +93,11 @@ public class AlgoLabProgressPanel : MonoBehaviour
 
     [Header("Datos usuario por defecto / backend")]
     public Sprite userImageDefault;
-    public string userName = "Cristhian";
+    public string userName = "Usuario";
     public CategoriaUsuario userCategory = CategoriaUsuario.Junior;
 
     [Header("Formato usuario")]
-    public bool mostrarSoloPrimerNombre = true;
+    public bool mostrarSoloPrimerNombre = false;
 
     [Header("Información del nivel")]
     public TMP_Text levelNameText;
@@ -601,6 +601,30 @@ public class AlgoLabProgressPanel : MonoBehaviour
         ActualizarUsuario();
     }
 
+    public void AplicarImagenUsuario(Sprite imagen)
+    {
+        if (imageUser == null)
+        {
+            return;
+        }
+
+        Sprite imagenSegura = imagen != null ? imagen : userImageDefault;
+        if (imagenSegura == null)
+        {
+            imagenSegura = Resources.Load<Sprite>("UI/AvatarInvitado");
+        }
+
+        if (imagenSegura == null)
+        {
+            return;
+        }
+
+        imageUser.sprite = imagenSegura;
+        imageUser.color = Color.white;
+        imageUser.preserveAspect = true;
+        imageUser.enabled = true;
+    }
+
     public void AplicarDatosSesionBackend(
         string nombreBackend,
         string categoriaBackend,
@@ -790,7 +814,8 @@ public class AlgoLabProgressPanel : MonoBehaviour
     {
         // Defensa: algunos botones/objetos pueden llamar este método directamente.
         // Si hay un flujo activo, ignoramos el cambio visual para que el collapse siga en el nivel actual.
-        int indiceSolicitado = Mathf.Max(0, nuevoNivelIndex - 1);
+        int totalNiveles = ObtenerCantidadNiveles();
+        int indiceSolicitado = Mathf.Clamp(nuevoNivelIndex, 0, Mathf.Max(0, totalNiveles - 1));
         if (DebeIgnorarSolicitudDeOtroNivel(indiceSolicitado))
         {
             RefrescarTextoFlujoActual();
@@ -832,7 +857,8 @@ public class AlgoLabProgressPanel : MonoBehaviour
 
     public void SetNivelActualConAnimacion(int nuevoNivelIndex)
     {
-        int indiceSolicitado = Mathf.Max(0, nuevoNivelIndex - 1);
+        int totalNiveles = ObtenerCantidadNiveles();
+        int indiceSolicitado = Mathf.Clamp(nuevoNivelIndex, 0, Mathf.Max(0, totalNiveles - 1));
         if (DebeIgnorarSolicitudDeOtroNivel(indiceSolicitado))
         {
             RefrescarTextoFlujoActual();
@@ -842,7 +868,6 @@ public class AlgoLabProgressPanel : MonoBehaviour
         }
 
         int nivelAnterior = currentLevelIndex;
-        int totalNiveles = ObtenerCantidadNiveles();
         int nuevoNivel = Mathf.Clamp(nuevoNivelIndex, 0, totalNiveles);
 
         AvanzarVisualmenteANivel(nivelAnterior, nuevoNivel);
@@ -909,17 +934,37 @@ public class AlgoLabProgressPanel : MonoBehaviour
             }
 
             nameUserText.text = nombreMostrar;
+            nameUserText.enableAutoSizing = true;
+            nameUserText.fontSizeMin = 10f;
         }
 
         if (categoryText != null)
         {
             categoryText.text = ObtenerCategoriaTexto(userCategory);
+            categoryText.enableAutoSizing = true;
+            categoryText.fontSizeMin = 9f;
         }
 
-        if (imageUser != null && imageUser.sprite == null && userImageDefault != null)
+        if (imageUser != null)
         {
-            imageUser.sprite = userImageDefault;
-            imageUser.enabled = true;
+            if (imageUser.sprite == null)
+            {
+                if (userImageDefault != null)
+                {
+                    imageUser.sprite = userImageDefault;
+                }
+                else
+                {
+                    Sprite defaultSprite = Resources.Load<Sprite>("UI/AvatarInvitado");
+                    if (defaultSprite != null)
+                    {
+                        imageUser.sprite = defaultSprite;
+                    }
+                }
+            }
+            imageUser.color = Color.white;
+            imageUser.preserveAspect = true;
+            imageUser.enabled = imageUser.sprite != null;
         }
     }
 
@@ -962,7 +1007,7 @@ public class AlgoLabProgressPanel : MonoBehaviour
         }
 
         string modoTexto = currentMode == ModoActual.Aprendiendo
-            ? "Aprendiendo"
+            ? "Tema"
             : "Práctica";
 
         string mensaje = currentMode == ModoActual.Aprendiendo
@@ -974,16 +1019,26 @@ public class AlgoLabProgressPanel : MonoBehaviour
         if (levelNameText != null)
         {
             levelNameText.text = nombreNivelMostrar;
+            levelNameText.gameObject.SetActive(true);
         }
 
         if (currentModeText != null)
         {
             currentModeText.text = modoTexto;
+            currentModeText.gameObject.SetActive(true);
         }
 
         if (descriptionOrTaskText != null)
         {
+            descriptionOrTaskText.gameObject.SetActive(true);
             descriptionOrTaskText.text = mensaje;
+            descriptionOrTaskText.enableAutoSizing = true;
+            descriptionOrTaskText.fontSizeMin = 14f;
+            descriptionOrTaskText.fontSizeMax = 28f;
+            if (descriptionOrTaskText.transform.parent != null)
+            {
+                descriptionOrTaskText.transform.parent.gameObject.SetActive(true);
+            }
         }
 
         if (timerText != null)
@@ -2382,22 +2437,32 @@ public class AlgoLabProgressPanel : MonoBehaviour
             levelNameText.text = string.IsNullOrWhiteSpace(info.nombreNivel)
                 ? "Nivel " + (nivelActivoActual + 1)
                 : info.nombreNivel;
+            levelNameText.gameObject.SetActive(true);
         }
 
         if (currentModeText != null)
         {
             currentModeText.text = currentMode == ModoActual.Aprendiendo
-                ? "Aprendiendo"
+                ? "Tema"
                 : "Práctica";
+            currentModeText.gameObject.SetActive(true);
         }
 
         if (currentMode == ModoActual.Aprendiendo)
         {
             if (descriptionOrTaskText != null)
             {
+                descriptionOrTaskText.gameObject.SetActive(true);
                 descriptionOrTaskText.text = string.IsNullOrWhiteSpace(info.descripcionNivel)
                     ? learningDescription
                     : info.descripcionNivel;
+                descriptionOrTaskText.enableAutoSizing = true;
+                descriptionOrTaskText.fontSizeMin = 14f;
+                descriptionOrTaskText.fontSizeMax = 28f;
+                if (descriptionOrTaskText.transform.parent != null)
+                {
+                    descriptionOrTaskText.transform.parent.gameObject.SetActive(true);
+                }
             }
 
             if (timerText != null)
@@ -2409,9 +2474,17 @@ public class AlgoLabProgressPanel : MonoBehaviour
         {
             if (descriptionOrTaskText != null)
             {
+                descriptionOrTaskText.gameObject.SetActive(true);
                 descriptionOrTaskText.text = string.IsNullOrWhiteSpace(info.tareaPractica)
                     ? practiceTask
                     : info.tareaPractica;
+                descriptionOrTaskText.enableAutoSizing = true;
+                descriptionOrTaskText.fontSizeMin = 14f;
+                descriptionOrTaskText.fontSizeMax = 28f;
+                if (descriptionOrTaskText.transform.parent != null)
+                {
+                    descriptionOrTaskText.transform.parent.gameObject.SetActive(true);
+                }
             }
 
             if (timerText != null)
@@ -3342,16 +3415,35 @@ public class AlgoLabProgressPanel : MonoBehaviour
 
         AlgoLabProgressLevelInfo info = ObtenerInfoNivel(index);
 
+        bool estaEnPractica = currentMode == ModoActual.Practica ||
+                              estadoFlujoNivel == EstadoFlujoNivel.PracticaPreparada ||
+                              estadoFlujoNivel == EstadoFlujoNivel.PracticaEnCurso;
+
         if (info == null)
         {
             if (levelNameText != null)
             {
                 levelNameText.text = "Nivel " + (index + 1);
+                levelNameText.gameObject.SetActive(true);
+            }
+
+            if (currentModeText != null)
+            {
+                currentModeText.text = estaEnPractica ? "Práctica" : "Tema";
+                currentModeText.gameObject.SetActive(true);
             }
 
             if (descriptionOrTaskText != null)
             {
-                descriptionOrTaskText.text = "Sin descripción configurada para este nivel.";
+                descriptionOrTaskText.gameObject.SetActive(true);
+                descriptionOrTaskText.text = estaEnPractica ? practiceTask : learningDescription;
+                descriptionOrTaskText.enableAutoSizing = true;
+                descriptionOrTaskText.fontSizeMin = 14f;
+                descriptionOrTaskText.fontSizeMax = 28f;
+                if (descriptionOrTaskText.transform.parent != null)
+                {
+                    descriptionOrTaskText.transform.parent.gameObject.SetActive(true);
+                }
             }
 
             if (timerText != null)
@@ -3367,23 +3459,41 @@ public class AlgoLabProgressPanel : MonoBehaviour
             levelNameText.text = string.IsNullOrWhiteSpace(info.nombreNivel)
                 ? "Nivel " + (index + 1)
                 : info.nombreNivel;
+            levelNameText.gameObject.SetActive(true);
         }
 
         if (currentModeText != null)
         {
-            currentModeText.text = "Aprendiendo";
+            currentModeText.text = estaEnPractica ? "Práctica" : "Tema";
+            currentModeText.gameObject.SetActive(true);
         }
 
         if (descriptionOrTaskText != null)
         {
-            descriptionOrTaskText.text = string.IsNullOrWhiteSpace(info.descripcionNivel)
-                ? "Sin descripción configurada para este nivel."
-                : info.descripcionNivel;
+            string descripcionMostrar = estaEnPractica
+                ? (string.IsNullOrWhiteSpace(info.tareaPractica) ? practiceTask : info.tareaPractica)
+                : (string.IsNullOrWhiteSpace(info.descripcionNivel) ? learningDescription : info.descripcionNivel);
+
+            descriptionOrTaskText.gameObject.SetActive(true);
+            descriptionOrTaskText.text = string.IsNullOrWhiteSpace(descripcionMostrar)
+                ? (estaEnPractica ? "Completa el reto práctico de este nivel." : "Aprende los conceptos clave de este nivel.")
+                : descripcionMostrar;
+            descriptionOrTaskText.enableAutoSizing = true;
+            descriptionOrTaskText.fontSizeMin = 14f;
+            descriptionOrTaskText.fontSizeMax = 28f;
+            if (descriptionOrTaskText.transform.parent != null)
+            {
+                descriptionOrTaskText.transform.parent.gameObject.SetActive(true);
+            }
         }
 
         if (timerText != null)
         {
-            timerText.gameObject.SetActive(false);
+            timerText.gameObject.SetActive(estaEnPractica && !string.IsNullOrWhiteSpace(info.tiempoPractica));
+            if (estaEnPractica && !string.IsNullOrWhiteSpace(info.tiempoPractica))
+            {
+                timerText.text = info.tiempoPractica;
+            }
         }
     }
 

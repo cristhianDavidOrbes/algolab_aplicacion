@@ -2,10 +2,19 @@ using System;
 using System.Reflection;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Networking;
+using UnityEngine.UI;
 
 [DefaultExecutionOrder(100)]
 public class ProgressPanelSessionBinder : MonoBehaviour
 {
+    [Serializable]
+    public class AvatarPresetVisual
+    {
+        public string id = "orbita";
+        public Sprite sprite;
+    }
+
     [Header("Referencias")]
     public AlgoLabProgressPanel progressPanel;
 
@@ -34,6 +43,19 @@ public class ProgressPanelSessionBinder : MonoBehaviour
     [Tooltip("Cuando se llama AplicarProgresoGuardadoDesdeBackend puede animar el avance visual.")]
     public bool animarCuandoSeGuardaProgreso = true;
 
+    [Header("Avatar personalizado")]
+    [Tooltip("Descarga avatarUrl del perfil. Si falla, conserva el preset/default del panel.")]
+    public bool cargarAvatarPersonalizado = true;
+
+    [Range(3, 60)]
+    public int timeoutAvatarSegundos = 15;
+
+    [Range(256, 4096)]
+    public int dimensionMaximaAvatar = 2048;
+
+    [Tooltip("Mapeo opcional de los ids de avatar preset. Si queda vacío, se usa el sprite actual del panel.")]
+    public AvatarPresetVisual[] avataresPreset = new AvatarPresetVisual[0];
+
     [Header("Debug")]
     public bool mostrarDebug = true;
 
@@ -41,9 +63,26 @@ public class ProgressPanelSessionBinder : MonoBehaviour
     private int ultimoNivelBackendAplicado = -1;
     private int ultimoPuntajeAplicado = -1;
     private bool ultimoFueInvitado = false;
+    private string ultimoAvatarPresetAplicado = "";
+    private string ultimoAvatarUrlAplicado = "";
+    private string ultimoAvatarVersionAplicado = "";
+    private string ultimoResumenPerfilAplicado = "";
     private Coroutine rutinaActualizacion;
     private Coroutine rutinaAplicacionInicial;
+    private Coroutine rutinaAvatar;
     private AlgoLabSessionManager sessionManagerTipado;
+    private Sprite spriteAvatarPredeterminado;
+    private Color colorAvatarPredeterminado = Color.white;
+    private Image.Type tipoImagenAvatarPredeterminado = Image.Type.Simple;
+    private bool preservarAspectoAvatarPredeterminado;
+    private bool visualAvatarPredeterminadoCapturado;
+    private Sprite spriteAvatarRemoto;
+    private Texture2D texturaAvatarRemoto;
+    private Sprite spriteAvatarInvitado;
+    private bool spriteAvatarInvitadoCreadoEnRuntime;
+    private string claveAvatarRemotoAplicado = "";
+    private string claveAvatarEnDescarga = "";
+    private int generacionSolicitudAvatar;
 
     private void Awake()
     {
@@ -86,6 +125,14 @@ public class ProgressPanelSessionBinder : MonoBehaviour
             StopCoroutine(rutinaActualizacion);
             rutinaActualizacion = null;
         }
+
+        DetenerCargaAvatar();
+    }
+
+    private void OnDestroy()
+    {
+        DetenerCargaAvatar();
+        AplicarAvatarPreset(ultimoAvatarPresetAplicado);
     }
 
     private IEnumerator AplicarDespuesDeFrame()
@@ -115,6 +162,8 @@ public class ProgressPanelSessionBinder : MonoBehaviour
                 FindObjectsInactive.Include
             );
         }
+
+        CapturarAvatarPredeterminado();
 
         if (sessionManager == null)
         {
@@ -214,6 +263,13 @@ public class ProgressPanelSessionBinder : MonoBehaviour
             {
                 AplicarInvitado(forzar);
             }
+            else
+            {
+                SincronizarAvatar("orbita", "", "");
+                ultimoAvatarPresetAplicado = "orbita";
+                ultimoAvatarUrlAplicado = "";
+                ultimoAvatarVersionAplicado = "";
+            }
 
             return;
         }
@@ -237,17 +293,24 @@ public class ProgressPanelSessionBinder : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            nombre = "Usuario";
+            nombre = !string.IsNullOrWhiteSpace(datos.alias) ? datos.alias.Trim() : "Usuario";
         }
+
+        string categoriaCalculada = NormalizarCategoria(datos.categoria);
 
         int nivelBackend = Mathf.Max(1, datos.nivelActualBackend);
         int puntaje = Mathf.Max(0, datos.puntajeTotal);
         int nivelVisual = ConvertirNivelBackendAIndiceVisual(nivelBackend);
+        string resumenPerfil = categoriaCalculada;
 
         bool cambio =
             nombre != ultimoNombreAplicado ||
             nivelBackend != ultimoNivelBackendAplicado ||
             puntaje != ultimoPuntajeAplicado ||
+            datos.avatarPreset != ultimoAvatarPresetAplicado ||
+            datos.avatarUrl != ultimoAvatarUrlAplicado ||
+            datos.avatarVersion != ultimoAvatarVersionAplicado ||
+            resumenPerfil != ultimoResumenPerfilAplicado ||
             ultimoFueInvitado;
 
         if (!forzar && !cambio)
@@ -255,11 +318,7 @@ public class ProgressPanelSessionBinder : MonoBehaviour
             return;
         }
 
-        progressPanel.AplicarDatosUsuarioDesdeBackend(
-            nombre,
-            categoriaPorDefecto,
-            null
-        );
+        progressPanel.AplicarDatosUsuarioDesdeBackend(nombre, categoriaCalculada, null);
 
         progressPanel.SetPuntaje(puntaje);
 
@@ -274,9 +333,19 @@ public class ProgressPanelSessionBinder : MonoBehaviour
 
         progressPanel.ActualizarTodo();
 
+        SincronizarAvatar(
+            datos.avatarPreset,
+            datos.avatarUrl,
+            datos.avatarVersion
+        );
+
         ultimoNombreAplicado = nombre;
         ultimoNivelBackendAplicado = nivelBackend;
         ultimoPuntajeAplicado = puntaje;
+        ultimoAvatarPresetAplicado = datos.avatarPreset;
+        ultimoAvatarUrlAplicado = datos.avatarUrl;
+        ultimoAvatarVersionAplicado = datos.avatarVersion;
+        ultimoResumenPerfilAplicado = resumenPerfil;
         ultimoFueInvitado = false;
 
         DebugLog(
@@ -320,17 +389,22 @@ public class ProgressPanelSessionBinder : MonoBehaviour
 
         progressPanel.AplicarDatosUsuarioDesdeBackend(
             nombreInvitado,
-            categoriaInvitado,
+            "Junior",
             null
         );
 
         progressPanel.SetPuntaje(puntaje);
         progressPanel.SetNivelActual(nivelVisual);
         progressPanel.ActualizarTodo();
+        SincronizarAvatarInvitado();
 
         ultimoNombreAplicado = nombreInvitado;
         ultimoNivelBackendAplicado = nivelBackend;
         ultimoPuntajeAplicado = puntaje;
+        ultimoAvatarPresetAplicado = "orbita";
+        ultimoAvatarUrlAplicado = "";
+        ultimoAvatarVersionAplicado = "";
+        ultimoResumenPerfilAplicado = "";
         ultimoFueInvitado = true;
 
         DebugLog(
@@ -549,6 +623,167 @@ public class ProgressPanelSessionBinder : MonoBehaviour
 
         datos.nombre = nombre;
 
+        datos.alias = LeerTextoDesdeObjeto(
+            manager,
+            "",
+            "AliasUsuario",
+            "aliasUsuario",
+            "Alias",
+            "alias",
+            "NombreUsuario",
+            "nombreUsuario"
+        );
+
+        datos.programa = LeerTextoDesdeObjeto(
+            manager,
+            "",
+            "Programa",
+            "programa",
+            "Carrera",
+            "carrera"
+        );
+
+        datos.institucion = LeerTextoDesdeObjeto(
+            manager,
+            "",
+            "Institucion",
+            "institucion",
+            "Universidad",
+            "universidad"
+        );
+
+        datos.rol = LeerTextoDesdeObjeto(
+            manager,
+            "",
+            "RolUsuario",
+            "rolUsuario",
+            "Rol",
+            "rol"
+        );
+
+        datos.avatarPreset = LeerTextoDesdeObjeto(
+            manager,
+            "",
+            "Avatar",
+            "avatar",
+            "AvatarPreset",
+            "avatarPreset"
+        );
+
+        datos.avatarUrl = LeerTextoDesdeObjeto(
+            manager,
+            "",
+            "AvatarUrl",
+            "avatarUrl",
+            "AvatarURL",
+            "avatarURL"
+        );
+
+        datos.avatarVersion = LeerTextoDesdeObjeto(
+            manager,
+            "",
+            "AvatarVersion",
+            "avatarVersion"
+        );
+
+        if (usuario != null)
+        {
+            if (string.IsNullOrWhiteSpace(datos.alias))
+            {
+                datos.alias = LeerTextoDesdeObjeto(
+                    usuario,
+                    "",
+                    "nombreUsuario",
+                    "NombreUsuario",
+                    "alias",
+                    "Alias"
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(datos.programa))
+            {
+                datos.programa = LeerTextoDesdeObjeto(
+                    usuario,
+                    "",
+                    "programa",
+                    "Programa",
+                    "carrera",
+                    "Carrera"
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(datos.institucion))
+            {
+                datos.institucion = LeerTextoDesdeObjeto(
+                    usuario,
+                    "",
+                    "institucion",
+                    "Institucion",
+                    "universidad",
+                    "Universidad"
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(datos.rol))
+            {
+                datos.rol = LeerTextoDesdeObjeto(
+                    usuario,
+                    "",
+                    "rol",
+                    "Rol"
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(datos.avatarPreset))
+            {
+                datos.avatarPreset = LeerTextoDesdeObjeto(
+                    usuario,
+                    "",
+                    "avatar",
+                    "Avatar",
+                    "avatarPreset",
+                    "AvatarPreset"
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(datos.avatarUrl))
+            {
+                datos.avatarUrl = LeerTextoDesdeObjeto(
+                    usuario,
+                    "",
+                    "avatarUrl",
+                    "AvatarUrl",
+                    "avatarURL",
+                    "AvatarURL"
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(datos.avatarVersion))
+            {
+                datos.avatarVersion = LeerTextoDesdeObjeto(
+                    usuario,
+                    "",
+                    "avatarVersion",
+                    "AvatarVersion"
+                );
+            }
+        }
+
+        datos.avatarPreset = string.IsNullOrWhiteSpace(datos.avatarPreset)
+            ? "orbita"
+            : datos.avatarPreset.Trim();
+        datos.avatarUrl = datos.avatarUrl == null ? "" : datos.avatarUrl.Trim();
+        datos.avatarVersion = datos.avatarVersion == null ? "" : datos.avatarVersion.Trim();
+
+        datos.categoria = LeerTextoDesdeObjeto(
+            manager,
+            "Junior",
+            "CategoriaUsuario",
+            "categoriaUsuario",
+            "Categoria",
+            "categoria"
+        );
+
         int nivelManager = LeerEnteroDesdeObjeto(
             manager,
             -1,
@@ -613,6 +848,476 @@ public class ProgressPanelSessionBinder : MonoBehaviour
         }
 
         return datos;
+    }
+
+    private void CapturarAvatarPredeterminado()
+    {
+        if (progressPanel == null)
+        {
+            return;
+        }
+
+        if (!visualAvatarPredeterminadoCapturado && progressPanel.imageUser != null)
+        {
+            Color colorActual = progressPanel.imageUser.color;
+            if (colorActual.a <= 0.05f || (colorActual.r <= 0.05f && colorActual.g <= 0.05f && colorActual.b <= 0.05f))
+            {
+                colorAvatarPredeterminado = Color.white;
+            }
+            else
+            {
+                colorAvatarPredeterminado = colorActual;
+            }
+            tipoImagenAvatarPredeterminado = progressPanel.imageUser.type;
+            preservarAspectoAvatarPredeterminado = true;
+            visualAvatarPredeterminadoCapturado = true;
+        }
+
+        if (spriteAvatarPredeterminado != null)
+        {
+            return;
+        }
+
+        if (progressPanel.userImageDefault != null)
+        {
+            spriteAvatarPredeterminado = progressPanel.userImageDefault;
+            return;
+        }
+
+        if (progressPanel.imageUser != null &&
+            progressPanel.imageUser.sprite != null &&
+            progressPanel.imageUser.sprite != spriteAvatarRemoto)
+        {
+            spriteAvatarPredeterminado = progressPanel.imageUser.sprite;
+            return;
+        }
+
+        Sprite recursoDefault = Resources.Load<Sprite>("UI/AvatarInvitado");
+        if (recursoDefault != null)
+        {
+            spriteAvatarPredeterminado = recursoDefault;
+        }
+    }
+
+    private void SincronizarAvatar(string avatarPreset, string avatarUrl, string avatarVersion)
+    {
+        CapturarAvatarPredeterminado();
+
+        string presetSeguro = string.IsNullOrWhiteSpace(avatarPreset)
+            ? "orbita"
+            : avatarPreset.Trim();
+        string rutaSegura = avatarUrl == null ? "" : avatarUrl.Trim();
+        string versionSegura = avatarVersion == null ? "" : avatarVersion.Trim();
+
+        if (!cargarAvatarPersonalizado || string.IsNullOrWhiteSpace(rutaSegura))
+        {
+            DetenerCargaAvatar();
+            AplicarAvatarPreset(presetSeguro);
+            return;
+        }
+
+        if (rutaSegura.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            DetenerCargaAvatar();
+            if (CargarAvatarDesdeBase64(rutaSegura, presetSeguro))
+            {
+                return;
+            }
+        }
+
+        string urlResuelta = ResolverUrlAvatar(rutaSegura);
+        if (string.IsNullOrWhiteSpace(urlResuelta))
+        {
+            DetenerCargaAvatar();
+            AplicarAvatarPreset(presetSeguro);
+            DebugLog("PROGRESS BINDER: avatarUrl inválida; se conserva el avatar preset.");
+            return;
+        }
+
+        urlResuelta = AgregarVersionAvatarSiHaceFalta(urlResuelta, versionSegura);
+        string clave = urlResuelta + "|" + versionSegura;
+
+        if (spriteAvatarRemoto != null && claveAvatarRemotoAplicado == clave)
+        {
+            ConfigurarVisualAvatarRemoto();
+            progressPanel.AplicarImagenUsuario(spriteAvatarRemoto);
+            return;
+        }
+
+        if (rutinaAvatar != null && claveAvatarEnDescarga == clave)
+        {
+            return;
+        }
+
+        DetenerCargaAvatar();
+        AplicarAvatarPreset(presetSeguro);
+
+        int generacion = generacionSolicitudAvatar;
+        claveAvatarEnDescarga = clave;
+        rutinaAvatar = StartCoroutine(
+            DescargarAvatarRutina(
+                urlResuelta,
+                clave,
+                presetSeguro,
+                generacion
+            )
+        );
+    }
+
+    private void SincronizarAvatarInvitado()
+    {
+        DetenerCargaAvatar();
+
+        if (spriteAvatarInvitado == null)
+        {
+            spriteAvatarInvitado = Resources.Load<Sprite>("UI/AvatarInvitado");
+            if (spriteAvatarInvitado == null)
+            {
+                Texture2D textura = Resources.Load<Texture2D>("UI/AvatarInvitado");
+                if (textura != null)
+                {
+                    spriteAvatarInvitado = Sprite.Create(
+                        textura,
+                        new Rect(0f, 0f, textura.width, textura.height),
+                        new Vector2(0.5f, 0.5f),
+                        100f
+                    );
+                    spriteAvatarInvitado.name = "AlgoLab_AvatarInvitado_Sprite";
+                    spriteAvatarInvitadoCreadoEnRuntime = true;
+                }
+            }
+        }
+
+        if (spriteAvatarInvitado != null)
+        {
+            ConfigurarVisualAvatarRemoto();
+            progressPanel.AplicarImagenUsuario(spriteAvatarInvitado);
+            return;
+        }
+
+        AplicarAvatarPreset("orbita");
+    }
+
+    private static string NormalizarCategoria(string categoria)
+    {
+        if (string.IsNullOrWhiteSpace(categoria))
+        {
+            return "Junior";
+        }
+
+        string normalizada = categoria.Trim().ToLowerInvariant();
+        if (normalizada.Contains("fullstack") || normalizada.Contains("full stack"))
+        {
+            return "Fullstack";
+        }
+
+        return normalizada.Contains("senior") ? "Senior" : "Junior";
+    }
+
+    private bool CargarAvatarDesdeBase64(string dataUri, string avatarPreset)
+    {
+        try
+        {
+            int commaIndex = dataUri.IndexOf(',');
+            if (commaIndex < 0)
+                return false;
+
+            string base64 = dataUri.Substring(commaIndex + 1);
+            byte[] bytes = Convert.FromBase64String(base64);
+            if (bytes == null || bytes.Length == 0)
+                return false;
+
+            Texture2D textura = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!ImageConversion.LoadImage(textura, bytes))
+            {
+                Destroy(textura);
+                return false;
+            }
+
+            textura.name = "AlgoLab_Avatar_Base64";
+            textura.wrapMode = TextureWrapMode.Clamp;
+            textura.filterMode = FilterMode.Bilinear;
+
+            Sprite nuevoSprite = Sprite.Create(
+                textura,
+                new Rect(0f, 0f, textura.width, textura.height),
+                new Vector2(0.5f, 0.5f),
+                100f
+            );
+            nuevoSprite.name = "AlgoLab_Avatar_Base64_Sprite";
+
+            LiberarAvatarRemoto();
+            texturaAvatarRemoto = textura;
+            spriteAvatarRemoto = nuevoSprite;
+            claveAvatarRemotoAplicado = "base64_" + dataUri.Length;
+            ConfigurarVisualAvatarRemoto();
+            progressPanel.AplicarImagenUsuario(spriteAvatarRemoto);
+            DebugLog("PROGRESS BINDER: avatar base64 aplicado.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning("PROGRESS BINDER: error al decodificar avatar base64: " + ex.Message);
+            AplicarAvatarPreset(avatarPreset);
+            return false;
+        }
+    }
+
+    private IEnumerator DescargarAvatarRutina(
+        string url,
+        string clave,
+        string avatarPreset,
+        int generacion
+    )
+    {
+        using UnityWebRequest request = UnityWebRequestTexture.GetTexture(url, true);
+        string authorization = sessionManagerTipado != null
+            ? sessionManagerTipado.ObtenerAuthorizationHeader()
+            : "";
+        if (!string.IsNullOrWhiteSpace(authorization))
+        {
+            request.SetRequestHeader("Authorization", authorization);
+        }
+        request.SetRequestHeader("ngrok-skip-browser-warning", "algolab");
+        request.SetRequestHeader("Accept", "image/png,image/jpeg,image/*,*/*");
+        request.timeout = Mathf.Clamp(timeoutAvatarSegundos, 3, 60);
+        yield return request.SendWebRequest();
+
+        if (generacion != generacionSolicitudAvatar || !isActiveAndEnabled)
+        {
+            yield break;
+        }
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            AplicarAvatarPreset(avatarPreset);
+            FinalizarSolicitudAvatar(generacion);
+            DebugLog(
+                "PROGRESS BINDER: no se pudo descargar el avatar; se usa el preset. " +
+                request.error
+            );
+            yield break;
+        }
+
+        string contentType = request.GetResponseHeader("Content-Type");
+        bool tipoValido =
+            string.IsNullOrWhiteSpace(contentType) ||
+            contentType.StartsWith("image/png", StringComparison.OrdinalIgnoreCase) ||
+            contentType.StartsWith("image/jpeg", StringComparison.OrdinalIgnoreCase) ||
+            contentType.StartsWith("image/jpg", StringComparison.OrdinalIgnoreCase);
+
+        Texture2D textura = DownloadHandlerTexture.GetContent(request);
+        int dimensionMaxima = Mathf.Clamp(dimensionMaximaAvatar, 256, 4096);
+        bool texturaValida =
+            tipoValido &&
+            textura != null &&
+            textura.width >= 2 &&
+            textura.height >= 2 &&
+            textura.width <= dimensionMaxima &&
+            textura.height <= dimensionMaxima;
+
+        if (!texturaValida)
+        {
+            if (textura != null)
+            {
+                Destroy(textura);
+            }
+
+            AplicarAvatarPreset(avatarPreset);
+            FinalizarSolicitudAvatar(generacion);
+            DebugLog("PROGRESS BINDER: el archivo de avatar no es PNG/JPEG válido o excede el tamaño permitido.");
+            yield break;
+        }
+
+        textura.name = "AlgoLab_Avatar_Remoto";
+        textura.wrapMode = TextureWrapMode.Clamp;
+        textura.filterMode = FilterMode.Bilinear;
+
+        Sprite nuevoSprite = Sprite.Create(
+            textura,
+            new Rect(0f, 0f, textura.width, textura.height),
+            new Vector2(0.5f, 0.5f),
+            100f
+        );
+        nuevoSprite.name = "AlgoLab_Avatar_Remoto_Sprite";
+
+        LiberarAvatarRemoto();
+        texturaAvatarRemoto = textura;
+        spriteAvatarRemoto = nuevoSprite;
+        claveAvatarRemotoAplicado = clave;
+        ConfigurarVisualAvatarRemoto();
+        progressPanel.AplicarImagenUsuario(spriteAvatarRemoto);
+        FinalizarSolicitudAvatar(generacion);
+
+        DebugLog("PROGRESS BINDER: avatar personalizado aplicado al panel de progreso.");
+    }
+
+    private string ResolverUrlAvatar(string avatarUrl)
+    {
+        AlgoLabBackendClient backendClient = AlgoLabBackendClient.Instance;
+        if (backendClient == null)
+        {
+            backendClient = FindFirstObjectByType<AlgoLabBackendClient>(
+                FindObjectsInactive.Include
+            );
+        }
+
+        if (backendClient != null)
+        {
+            return backendClient.ResolverUrlBackend(avatarUrl);
+        }
+
+        if (Uri.TryCreate(avatarUrl, UriKind.Absolute, out Uri absoluta) &&
+            (absoluta.Scheme == Uri.UriSchemeHttp || absoluta.Scheme == Uri.UriSchemeHttps))
+        {
+            return absoluta.AbsoluteUri;
+        }
+
+        return "";
+    }
+
+    private string AgregarVersionAvatarSiHaceFalta(string url, string avatarVersion)
+    {
+        if (string.IsNullOrWhiteSpace(url) ||
+            string.IsNullOrWhiteSpace(avatarVersion) ||
+            url.IndexOf("v=", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return url;
+        }
+
+        string separador = url.Contains("?") ? "&" : "?";
+        return url + separador + "v=" + UnityWebRequest.EscapeURL(avatarVersion);
+    }
+
+    private void AplicarAvatarPreset(string avatarPreset)
+    {
+        if (progressPanel == null)
+        {
+            LiberarAvatarRemoto();
+            return;
+        }
+
+        RestaurarVisualAvatarPredeterminado();
+        Sprite preset = BuscarSpriteAvatarPreset(avatarPreset);
+        if (preset == null)
+        {
+            preset = spriteAvatarPredeterminado != null
+                ? spriteAvatarPredeterminado
+                : Resources.Load<Sprite>("UI/AvatarInvitado");
+        }
+
+        if (preset != null)
+        {
+            progressPanel.AplicarImagenUsuario(preset);
+        }
+        else if (progressPanel.imageUser != null)
+        {
+            progressPanel.imageUser.color = Color.white;
+            progressPanel.imageUser.preserveAspect = true;
+            progressPanel.imageUser.enabled = progressPanel.imageUser.sprite != null;
+        }
+
+        LiberarAvatarRemoto();
+    }
+
+    private void ConfigurarVisualAvatarRemoto()
+    {
+        if (progressPanel == null || progressPanel.imageUser == null)
+        {
+            return;
+        }
+
+        progressPanel.imageUser.color = Color.white;
+        progressPanel.imageUser.type = Image.Type.Simple;
+        progressPanel.imageUser.preserveAspect = true;
+        progressPanel.imageUser.enabled = true;
+    }
+
+    private void RestaurarVisualAvatarPredeterminado()
+    {
+        if (progressPanel == null || progressPanel.imageUser == null)
+        {
+            return;
+        }
+
+        Color colorSeguro = colorAvatarPredeterminado;
+        if (colorSeguro.a <= 0.05f || (colorSeguro.r <= 0.05f && colorSeguro.g <= 0.05f && colorSeguro.b <= 0.05f))
+        {
+            colorSeguro = Color.white;
+        }
+
+        progressPanel.imageUser.color = colorSeguro;
+        progressPanel.imageUser.type = tipoImagenAvatarPredeterminado;
+        progressPanel.imageUser.preserveAspect = true;
+        progressPanel.imageUser.enabled = true;
+    }
+
+    private Sprite BuscarSpriteAvatarPreset(string avatarPreset)
+    {
+        string idBuscado = string.IsNullOrWhiteSpace(avatarPreset)
+            ? "orbita"
+            : avatarPreset.Trim();
+
+        if (avataresPreset != null)
+        {
+            for (int i = 0; i < avataresPreset.Length; i++)
+            {
+                AvatarPresetVisual candidato = avataresPreset[i];
+                if (candidato != null &&
+                    candidato.sprite != null &&
+                    string.Equals(candidato.id, idBuscado, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidato.sprite;
+                }
+            }
+        }
+
+        if (spriteAvatarPredeterminado != null)
+        {
+            return spriteAvatarPredeterminado;
+        }
+
+        return Resources.Load<Sprite>("UI/AvatarInvitado");
+    }
+
+    private void DetenerCargaAvatar()
+    {
+        generacionSolicitudAvatar++;
+        claveAvatarEnDescarga = "";
+
+        if (rutinaAvatar != null)
+        {
+            StopCoroutine(rutinaAvatar);
+            rutinaAvatar = null;
+        }
+    }
+
+    private void FinalizarSolicitudAvatar(int generacion)
+    {
+        if (generacion != generacionSolicitudAvatar)
+        {
+            return;
+        }
+
+        rutinaAvatar = null;
+        claveAvatarEnDescarga = "";
+    }
+
+    private void LiberarAvatarRemoto()
+    {
+        if (spriteAvatarRemoto != null)
+        {
+            Destroy(spriteAvatarRemoto);
+            spriteAvatarRemoto = null;
+        }
+
+        if (texturaAvatarRemoto != null)
+        {
+            Destroy(texturaAvatarRemoto);
+            texturaAvatarRemoto = null;
+        }
+
+        claveAvatarRemotoAplicado = "";
     }
 
     private object LeerObjetoUsuario(object target)
@@ -817,6 +1522,14 @@ public class ProgressPanelSessionBinder : MonoBehaviour
         public bool autenticado;
         public bool esInvitado;
         public string nombre;
+        public string alias;
+        public string programa;
+        public string institucion;
+        public string rol;
+        public string avatarPreset;
+        public string avatarUrl;
+        public string avatarVersion;
+        public string categoria;
         public int nivelActualBackend;
         public int puntajeTotal;
     }

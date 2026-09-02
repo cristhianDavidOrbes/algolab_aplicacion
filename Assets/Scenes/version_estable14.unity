@@ -15,9 +15,9 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_FogColor: {r: 0, g: 0, b: 0, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.01
+  m_FogDensity: 1
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
@@ -27,9 +27,9 @@ RenderSettings:
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 0}
-  m_HaloStrength: 0.5
+  m_HaloStrength: 1
   m_FlareStrength: 1
-  m_FlareFadeSpeed: 3
+  m_FlareFadeSpeed: 10.28
   m_HaloTexture: {fileID: 0}
   m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
   m_DefaultReflectionMode: 0
@@ -1073,7 +1073,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -1210,7 +1210,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -2194,7 +2194,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -2889,7 +2889,7 @@ MonoBehaviour:
   ocultarPanelesEspecialesAlBloquearJuego: 1
   activarPanelesEspecialesAlTerminarTutorial: 1
   ocultarJuegoAlIniciar: 1
-  activarJuegoSiYaHaySesionGuardada: 1
+  activarJuegoSiYaHaySesionGuardada: 0
   ocultarLoginCuandoEntra: 1
   mantenerEntreEscenas: 0
   mostrarDebug: 1
@@ -3169,7 +3169,7 @@ MonoBehaviour:
   tutorialBienvenida: {fileID: 1734996192}
   mostrarTutorialDespuesDeEntrar: 1
   retrasoTutorialDespuesDeEntrar: 2
-  mostrarTutorialConSesionGuardada: 0
+  mostrarTutorialConSesionGuardada: 1
   mostrarDebug: 1
 --- !u!1 &92650968
 GameObject:
@@ -4773,6 +4773,8 @@ MonoBehaviour:
     m_Bits: 4294967295
   gripPressThreshold: 0.65
   gripReleaseThreshold: 0.35
+  distanciaMaximaContactoLibro: 0.055
+  distanciaMaximaContactoLibroProyectil: 0.18
   seguirConTransform: 1
   mantenerOffsetAlAgarrar: 1
   aplicarVelocidadAlSoltar: 1
@@ -4801,6 +4803,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   botonSeleccion: 8192
+  permitirAgarreRemotoLibros: 0
+  permitirAtraccionSuaveLibros: 1
   ovrHand: {fileID: 0}
   dedoPinza: 1
   umbralPinza: 0.75
@@ -5072,7 +5076,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -5557,7 +5561,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: mensaje
+  m_text: entender los conceptos basicos en poo
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bafcde68c29c6444fa3d8f61739e71c2, type: 2}
   m_sharedMaterial: {fileID: -241348852149691919, guid: bafcde68c29c6444fa3d8f61739e71c2, type: 2}
@@ -5587,9 +5591,9 @@ MonoBehaviour:
   m_fontSize: 36
   m_fontSizeBase: 36
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 14
+  m_fontSizeMax: 36
   m_fontStyle: 1
   m_HorizontalAlignment: 1
   m_VerticalAlignment: 256
@@ -6158,7 +6162,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -9259,6 +9263,10 @@ MonoBehaviour:
   categoriaPorDefecto: Junior
   sincronizarBackendSinAnimar: 1
   animarCuandoSeGuardaProgreso: 1
+  cargarAvatarPersonalizado: 1
+  timeoutAvatarSegundos: 15
+  dimensionMaximaAvatar: 2048
+  avataresPreset: []
   mostrarDebug: 1
 --- !u!1 &238650240
 GameObject:
@@ -13843,7 +13851,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -19373,7 +19381,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -22531,7 +22539,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -30786,7 +30794,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: practicando
+  m_text: Tema
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bafcde68c29c6444fa3d8f61739e71c2, type: 2}
   m_sharedMaterial: {fileID: -241348852149691919, guid: bafcde68c29c6444fa3d8f61739e71c2, type: 2}
@@ -37627,7 +37635,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -42643,7 +42651,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -43239,7 +43247,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -43588,7 +43596,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -44141,6 +44149,8 @@ MonoBehaviour:
     m_Bits: 4294967295
   gripPressThreshold: 0.65
   gripReleaseThreshold: 0.35
+  distanciaMaximaContactoLibro: 0.055
+  distanciaMaximaContactoLibroProyectil: 0.18
   seguirConTransform: 1
   mantenerOffsetAlAgarrar: 1
   aplicarVelocidadAlSoltar: 1
@@ -44169,6 +44179,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   botonSeleccion: 8192
+  permitirAgarreRemotoLibros: 0
+  permitirAtraccionSuaveLibros: 1
   ovrHand: {fileID: 0}
   dedoPinza: 1
   umbralPinza: 0.75
@@ -45064,7 +45076,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -50040,9 +50052,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AlgoLabBackendClient
   backendBaseUrl: https://backendfrontendpaginawebmr-production.up.railway.app
+  iaReporteUrl: https://appetite-tuesday-empty.ngrok-free.dev/api/ia/reporte-nivel
+  generarReporteAlCompletarNivel: 1
   sessionManager: {fileID: 1621244088}
   mantenerEntreEscenas: 1
   timeoutSegundos: 20
+  sincronizarPerfilAlIniciar: 1
   mostrarDebug: 1
 --- !u!4 &1383289427
 Transform:
@@ -50314,7 +50329,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -51809,7 +51824,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -52083,7 +52098,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -53078,7 +53093,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -57033,7 +57048,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -57292,10 +57307,17 @@ MonoBehaviour:
   modoInvitado: 0
   usuarioId: 0
   nombreUsuario: 
+  aliasUsuario: 
   correoUsuario: 
   rolUsuario: 
   nivelActual: 1
   puntaje: 0
+  biografia: 
+  institucion: 
+  programa: 
+  avatar: orbita
+  avatarUrl: 
+  avatarVersion: 
   tokenJwt: 
   cargarSesionGuardadaAlIniciar: 1
   guardarSesionEnPlayerPrefs: 1
@@ -58845,22 +58867,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6695808189976455977, guid: f19cc171133072f42bc832d10e273519, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 9222537804128775009, guid: f19cc171133072f42bc832d10e273519, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8898917601526622510, guid: f19cc171133072f42bc832d10e273519, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 4062345687731274637, guid: f19cc171133072f42bc832d10e273519, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 5473700949835162621, guid: f19cc171133072f42bc832d10e273519, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f19cc171133072f42bc832d10e273519, type: 3}
 --- !u!1 &1681271305 stripped
 GameObject:
@@ -59936,7 +59943,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -64782,8 +64789,8 @@ MonoBehaviour:
     explicacion: "La abstracci\xF3n muestra lo esencial y oculta detalles que no
       necesita quien utiliza el objeto. Una interfaz simple permite usar una clase
       sin conocer toda su implementaci\xF3n."
-    reto: "Separa las operaciones esenciales de Veh\xEDculo de los detalles internos
-      necesarios para realizarlas."
+    reto: 'Clasifica los libros para construir dos abstracciones: LibroBiblioteca
+      y LibroLibreria. Cada contexto conserva solo los atributos y metodos que necesita.'
   - numeroNivel: 5
     nombre: Herencia
     explicacion: "Una clase hija reutiliza la estructura de una clase padre y puede
@@ -64805,6 +64812,7 @@ MonoBehaviour:
       m_Calls: []
   tutorialPracticaNivel3: {fileID: 1754380339}
   recursoPracticaRobot: Level3/AlgoLabRobotPractice
+  recursoPracticaAbstraccion: Level4/AlgoLabAbstractionPractice
   manualSpawner: {fileID: 0}
   mostrarDebug: 1
 --- !u!114 &1754380338
@@ -68253,7 +68261,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -68704,7 +68712,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -69858,7 +69866,7 @@ MonoBehaviour:
   colocarReferenciaEnCabezaAlIniciar: 1
   ubicarPanelesAlIniciar: 1
   usarSoloRotacionY: 1
-  offsetAlturaGlobal: 1.2
+  offsetAlturaGlobal: 1.3
   usarAlturaGlobalComoAlturaFinal: 1
   sessionManager: {fileID: 0}
   reubicarFrenteUnaVezAlEntrar: 1
@@ -69866,11 +69874,12 @@ MonoBehaviour:
   spawnearObjetoFrontalAlEntrar: 0
   ajustarAlturaEnTiempoReal: 1
   usarAlturaLocalCabezaParaPostura: 1
-  alturaMaximaSentado: 1.35
-  alturaMinimaParado: 1.45
-  umbralAlturaCabezaParado: 1.45
-  alturaGlobalSentado: 1.2
-  alturaGlobalParado: 1.5
+  alturaMaximaSentado: 1.3
+  alturaMinimaParado: 1.38
+  umbralAlturaCabezaParado: 1.38
+  diferenciaMinimaLevantarse: 0.18
+  alturaGlobalSentado: 1.3
+  alturaGlobalParado: 1.65
   asumirSentadoAntesDePrimeraDeteccion: 1
   usarSmoothCambioAltura: 1
   tiempoSmoothCambioAltura: 0.35
@@ -71103,16 +71112,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 644193523255904411, guid: 87ed7bdfeafab0a45973eaeb95dd50c4, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 3724556173424279329, guid: 87ed7bdfeafab0a45973eaeb95dd50c4, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 5887460068821648239, guid: 87ed7bdfeafab0a45973eaeb95dd50c4, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 87ed7bdfeafab0a45973eaeb95dd50c4, type: 3}
 --- !u!1 &1887307666 stripped
 GameObject:

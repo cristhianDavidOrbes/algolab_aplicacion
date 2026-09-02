@@ -948,13 +948,12 @@ public class AlgoLabStartUIController : MonoBehaviour
         procesandoLogin = true;
         int operacion = ++generacionOperacion;
         ActivarInteractableLogin(false);
-        MostrarMensajeLogin("Verificando credenciales y preparando tu código seguro...");
+        MostrarMensajeLogin("Verificando credenciales...");
 
-        backendClient.SolicitarSegundoFactor(
+        backendClient.IniciarSesion(
             correo,
             contrasena,
-            canalSegundoFactor,
-            (ok, mensaje, desafio) =>
+            (ok, mensaje, respuesta) =>
             {
                 if (operacion != generacionOperacion || !isActiveAndEnabled)
                 {
@@ -969,8 +968,27 @@ public class AlgoLabStartUIController : MonoBehaviour
                     return;
                 }
 
-                procesandoLogin = false;
-                MostrarDesafioSegundoFactor(desafio, mensaje);
+                esperandoSegundoFactor = false;
+                desafioSegundoFactorId = string.Empty;
+                if (panelSegundoFactor != null)
+                {
+                    panelSegundoFactor.SetActive(false);
+                }
+
+                MostrarMensajeLogin(
+                    string.IsNullOrWhiteSpace(mensaje)
+                        ? "Inicio de sesión correcto."
+                        : mensaje
+                );
+
+                if (consultarProgresoDespuesDeLogin)
+                {
+                    ConsultarProgresoYEntrar(operacion);
+                }
+                else
+                {
+                    FinalizarEntradaPorLogin(operacion);
+                }
             }
         );
     }
@@ -1398,6 +1416,23 @@ public class AlgoLabStartUIController : MonoBehaviour
         OnLoginCorrecto?.Invoke();
         OnAccesoPermitido?.Invoke();
 
+        try
+        {
+            ProgressPanelSessionBinder binder = FindFirstObjectByType<ProgressPanelSessionBinder>(
+                FindObjectsInactive.Include
+            );
+            binder?.ActualizarDesdeSesion(true);
+
+            AlgoLabProgressPanel progressPanel = FindFirstObjectByType<AlgoLabProgressPanel>(
+                FindObjectsInactive.Include
+            );
+            progressPanel?.ActualizarTodo();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning("START UI: error sincronizando panel tras login: " + ex.Message);
+        }
+
         if (mostrarTutorialDespuesDeEntrar && DebeMostrarTutorialBienvenida())
         {
             ProgramarTutorialBienvenida();
@@ -1427,6 +1462,23 @@ public class AlgoLabStartUIController : MonoBehaviour
 
         OnInvitadoCorrecto?.Invoke();
         OnAccesoPermitido?.Invoke();
+
+        try
+        {
+            ProgressPanelSessionBinder binder = FindFirstObjectByType<ProgressPanelSessionBinder>(
+                FindObjectsInactive.Include
+            );
+            binder?.ActualizarDesdeSesion(true);
+
+            AlgoLabProgressPanel progressPanel = FindFirstObjectByType<AlgoLabProgressPanel>(
+                FindObjectsInactive.Include
+            );
+            progressPanel?.ActualizarTodo();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning("START UI: error sincronizando panel como invitado: " + ex.Message);
+        }
 
         if (mostrarTutorialDespuesDeEntrar)
         {

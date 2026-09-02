@@ -826,8 +826,6 @@ public class AlgoLabProgressPanel : MonoBehaviour
 
         DetenerAnimacionCamino();
 
-        int totalNiveles = ObtenerCantidadNiveles();
-
         currentLevelIndex = Mathf.Clamp(nuevoNivelIndex, 0, totalNiveles);
         nivelVisualActual = currentLevelIndex;
         caminosDibujados = currentLevelIndex;
@@ -1801,6 +1799,20 @@ public class AlgoLabProgressPanel : MonoBehaviour
     {
         return nivelActivoActual >= 0 ||
                estadoFlujoNivel != EstadoFlujoNivel.Ninguno;
+    }
+
+    public bool EstaTemaEnCursoNivel(int numeroNivel)
+    {
+        int indiceBaseCero = numeroNivel > 0 ? numeroNivel - 1 : numeroNivel;
+        bool coincideNivel = nivelActivoActual == indiceBaseCero ||
+                             nivelActivoActual == numeroNivel ||
+                             currentLevelIndex == indiceBaseCero ||
+                             currentLevelIndex == numeroNivel;
+
+        return coincideNivel && (
+            estadoFlujoNivel == EstadoFlujoNivel.TemaEnCurso ||
+            (currentMode == ModoActual.Aprendiendo && estadoFlujoNivel != EstadoFlujoNivel.Ninguno)
+        );
     }
 
     private static bool EsSesionInvitadaActual()

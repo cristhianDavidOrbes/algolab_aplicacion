@@ -33552,10 +33552,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af167e55ad73bcf4b90a09c1c01d9d04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AlgoLabBackendClient
-  backendBaseUrl: https://backendfrontendpaginawebmr-production.up.railway.app
+  backendBaseUrl: https://algolab-backend-7j0h.onrender.com
   sessionManager: {fileID: 1621244088}
   mantenerEntreEscenas: 1
-  timeoutSegundos: 20
+  timeoutSegundos: 120
   mostrarDebug: 1
 --- !u!4 &1383289427
 Transform:
@@ -39072,7 +39072,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4521e265987133c42b5752b5e8ef84e0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AlgoLabProgressSaver
-  backendBaseUrl: https://backendfrontendpaginawebmr-production.up.railway.app
+  backendBaseUrl: https://algolab-backend-7j0h.onrender.com
   sessionManager: {fileID: 1621244088}
   mostrarDebug: 1
 --- !u!1 &1702068321

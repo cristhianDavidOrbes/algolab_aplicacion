@@ -6,7 +6,7 @@ public class AlgoLabProgressSaver : MonoBehaviour
     public static AlgoLabProgressSaver Instance { get; private set; }
 
     [Header("Backend")]
-    public string backendBaseUrl = "https://backendfrontendpaginawebmr-production.up.railway.app";
+    public string backendBaseUrl = "https://algolab-backend-7j0h.onrender.com";
 
     [Header("Sesión")]
     public AlgoLabSessionManager sessionManager;

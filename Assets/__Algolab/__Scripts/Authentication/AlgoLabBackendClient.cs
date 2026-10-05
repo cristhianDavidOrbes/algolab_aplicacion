@@ -16,10 +16,10 @@ public class AlgoLabBackendClient : MonoBehaviour
 
     public static AlgoLabBackendClient Instance { get; private set; }
     private const string BackendUrlPredeterminada =
-        "https://backendfrontendpaginawebmr-production.up.railway.app";
+        "https://algolab-backend-7j0h.onrender.com";
 
     [Header("Backend")]
-    public string backendBaseUrl = "https://backendfrontendpaginawebmr-production.up.railway.app";
+    public string backendBaseUrl = "https://algolab-backend-7j0h.onrender.com";
 
     [Header("Reportes pedagógicos con IA")]
     [Tooltip("Se intenta usar primero la URL configurada en AlgoLabIAClient y esta queda como respaldo.")]
@@ -31,7 +31,7 @@ public class AlgoLabBackendClient : MonoBehaviour
 
     [Header("Configuración")]
     public bool mantenerEntreEscenas = true;
-    public int timeoutSegundos = 20;
+    public int timeoutSegundos = 120;
     public bool sincronizarPerfilAlIniciar = true;
     [Min(15f)]
     public float intervaloMinimoSincronizacionPerfil = 30f;
@@ -232,7 +232,8 @@ public class AlgoLabBackendClient : MonoBehaviour
 
     private void NormalizarBackendUrl()
     {
-        if (string.IsNullOrWhiteSpace(backendBaseUrl))
+        if (string.IsNullOrWhiteSpace(backendBaseUrl) ||
+            backendBaseUrl.Contains("backendfrontendpaginawebmr-production.up.railway.app"))
         {
             backendBaseUrl = BackendUrlPredeterminada;
         }
@@ -260,21 +261,80 @@ public class AlgoLabBackendClient : MonoBehaviour
         Action<bool, string, LoginResponse> callback
     )
     {
-        SolicitarSegundoFactor(
-            correo,
-            contrasena,
-            "CORREO",
-            (ok, mensaje, desafio) =>
-            {
-                callback?.Invoke(
-                    false,
-                    ok
-                        ? "Se envió un código de seguridad. Verifícalo para completar el inicio de sesión."
-                        : mensaje,
-                    null
-                );
-            }
-        );
+        int generacion = ++generacionInicioSesion;
+        StartCoroutine(IniciarSesionDirectoRutina(correo, contrasena, callback, generacion));
+    }
+
+    private IEnumerator IniciarSesionDirectoRutina(
+        string correo,
+        string contrasena,
+        Action<bool, string, LoginResponse> callback,
+        int generacion
+    )
+    {
+        BuscarReferencias();
+        NormalizarBackendUrl();
+
+        if (string.IsNullOrWhiteSpace(correo) || string.IsNullOrWhiteSpace(contrasena))
+        {
+            callback?.Invoke(false, "Escribe el correo y la contraseña.", null);
+            yield break;
+        }
+
+        LoginRequest body = new LoginRequest
+        {
+            correo = correo.Trim(),
+            contrasena = contrasena
+        };
+
+        string url = CrearUrl("/api/usuarios/iniciar-sesion");
+        using UnityWebRequest request = CrearPostJson(url, JsonUtility.ToJson(body), false);
+        yield return request.SendWebRequest();
+
+        if (generacion != generacionInicioSesion)
+        {
+            yield break;
+        }
+
+        string respuestaTexto = request.downloadHandler != null
+            ? request.downloadHandler.text
+            : "";
+        if (!RespuestaExitosa(request))
+        {
+            callback?.Invoke(
+                false,
+                ConstruirMensajeError("No se pudo iniciar sesión.", request, respuestaTexto),
+                null
+            );
+            yield break;
+        }
+
+        LoginResponse respuesta;
+        try
+        {
+            respuesta = JsonUtility.FromJson<LoginResponse>(respuestaTexto);
+        }
+        catch (Exception error)
+        {
+            callback?.Invoke(false, "No se pudo leer la respuesta: " + error.Message, null);
+            yield break;
+        }
+
+        if (respuesta == null || !respuesta.exitoso ||
+            string.IsNullOrWhiteSpace(respuesta.token) || respuesta.usuario == null)
+        {
+            callback?.Invoke(
+                false,
+                respuesta != null && !string.IsNullOrWhiteSpace(respuesta.mensaje)
+                    ? respuesta.mensaje
+                    : "El backend no devolvió una sesión válida.",
+                respuesta
+            );
+            yield break;
+        }
+
+        sessionManager?.IniciarSesionConUsuario(respuesta.token, respuesta.usuario);
+        callback?.Invoke(true, "Inicio de sesión correcto.", respuesta);
     }
 
     public void SolicitarSegundoFactor(
@@ -1331,7 +1391,7 @@ public class AlgoLabBackendClient : MonoBehaviour
     private UnityWebRequest CrearGet(string url, bool requiereToken)
     {
         UnityWebRequest request = UnityWebRequest.Get(url);
-        request.timeout = Mathf.Clamp(timeoutSegundos, 1, 120);
+        request.timeout = Mathf.Clamp(timeoutSegundos, 90, 120);
         request.downloadHandler = new DownloadHandlerBuffer();
 
         request.SetRequestHeader("Accept", "application/json");
@@ -1354,7 +1414,7 @@ public class AlgoLabBackendClient : MonoBehaviour
         byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
 
         UnityWebRequest request = new UnityWebRequest(url, metodo);
-        request.timeout = Mathf.Clamp(timeoutSegundos, 1, 120);
+        request.timeout = Mathf.Clamp(timeoutSegundos, 90, 120);
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
 
